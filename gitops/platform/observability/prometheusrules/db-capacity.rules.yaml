@@ -1,0 +1,29 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-db-capacity-rules
+  namespace: monitoring
+spec:
+  groups:
+    - name: db.capacity
+      rules:
+        - alert: PgBouncerConnectionsLow
+          expr: pgbouncer_free_connections < 10
+          for: 5m
+          labels:
+            severity: critical
+            team: db
+          annotations:
+            summary: "PgBouncer free connections low"
+            description: "PgBouncer free connections are below 10 for 5m. Check pool size and consumer concurrency."
+            runbook_url: "https://your-org/runbooks#pgbouncer-connections"
+        - alert: PostgresReplicationLagHigh
+          expr: pg_stat_replication_lag_seconds > 30
+          for: 2m
+          labels:
+            severity: warning
+            team: db
+          annotations:
+            summary: "Postgres replication lag high"
+            description: "Replica lag > 30s. Investigate IO, network, or WAL shipping."
+            runbook_url: "https://your-org/runbooks#postgres-replication"

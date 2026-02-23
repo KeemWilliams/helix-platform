@@ -1,24 +1,60 @@
-# Platform Components Documentation
+# Platform GitOps (gitops/platform)
 
-This directory contains the configurations for the cluster-level platform services.
+**Purpose:** Reconcile platform Kubernetes manifests (network, observability, DB, queue, egress) via Devtron/Argo.
 
-## 🛠️ Key Services
+## Canonical diagram and map
 
-| Service | Purpose | Path |
-| :--- | :--- | :--- |
-| **Cilium** | eBPF Networking & Gateway API | `./cilium/` |
-| **Longhorn** | Block-level HA Storage | `./longhorn/` |
-| **Authentik** | Identity Provider (OIDC/SAML) | `./authentik/` |
-| **Vault** | Secrets Management | `./vault/` |
+- Diagram: `../../docs/diagrams/overview-full.mmd` (rendered SVG: `../../docs/diagrams/overview-full.svg`)
+- Node map: `../../docs/diagrams/MAP.md`
 
-## 🔄 Upgrade Procedure
+## Key files in this directory
 
-1. **Check Compatibility**: Verify the new version is compatible with the current Talos/K8s release.
-2. **Update Values**: Modify `values.yaml` in the respective directory.
-3. **Verified Sync**: Use `devtron sync --dry-run` to preview changes.
+- `network-policies/` — CiliumNetworkPolicy and CiliumEgressNATPolicy manifests
+- `observability/prometheusrules/queue.rules.yaml` — queue alert rules
+- `egress/egress-values.yaml` — SOPS-encrypted Terraform outputs (egress IPs, LB IPs)
+- `devtron/platform-application.yaml` — Argo Application manifest (if applicable)
 
-## ✅ Verification Commands
+## Owners
 
-- `kubectl get ciliumnodes` — Check network health.
-- `kubectl get volumes.longhorn.io` — Check storage health.
-- `talosctl health --nodes <IP>` — Check OS health.
+- Platform: **@platform-owner**
+- Network: **@network-lead**
+- Observability: **@sre-lead**
+- GitOps: **@gitops-owner**
+
+## How to change (PR checklist)
+
+1. Update manifests under `gitops/platform/...`.
+2. Update `../../docs/diagrams/MAP.md` if nodes or owners change.
+3. Ensure `egress/egress-values.yaml` is updated by infra CI (SOPS-encrypted).
+4. Open PR using `.github/PULL_REQUEST_TEMPLATE.md`.
+5. Request approvals from owners listed above.
+
+## Verification (staging)
+
+```bash
+# Confirm Devtron/Argo app is synced
+kubectl -n argocd get applications platform-manifests -o yaml
+
+# Check network policies applied
+kubectl -n platform get ciliumnetworkpolicies
+
+# Check Prometheus rule loaded
+kubectl -n monitoring get prometheusrules platform-queue-rules -o yaml
+
+# Validate egress values (decrypt locally)
+sops --decrypt gitops/platform/egress/egress-values.yaml | yq .
+```
+
+## CI and automation
+
+- Terraform → GitOps export script: `../../infra/ci/scripts/tf-export-to-gitops.sh`
+- CI job: `../../.github/workflows/export-tf-outputs.yml` (produces branch `chore/tf-outputs-*`)
+
+## Runbooks
+
+- Stuck webhook job: `../../docs/runbook.md#stuck-webhook-job`
+- Postgres restore: `../../docs/runbook.md#postgres-restore`
+
+## Notes
+
+- All secrets must be SOPS-encrypted. See `../../infra/ci/README-tf-outputs-to-gitops.md` for SOPS/KMS setup.
