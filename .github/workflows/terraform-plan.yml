@@ -1,0 +1,27 @@
+name: Terraform Plan Comment
+on:
+  pull_request:
+    paths:
+      - 'infra/**'
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+      - name: Terraform init and plan
+        run: |
+          cd infra/envs/${{ github.event.pull_request.head.ref }} || cd infra/envs/staging
+          terraform init -input=false
+          terraform plan -no-color -out=tfplan
+          terraform show -no-color tfplan > plan.txt
+      - name: Comment plan
+        uses: marocchino/sticky-pull-request-comment@v2
+        with:
+          header: terraform-plan
+          message: |
+            **Terraform Plan**
+            ```terraform
+            $(sed -n '1,200p' plan.txt)
+            ```

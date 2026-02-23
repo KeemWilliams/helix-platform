@@ -1,0 +1,31 @@
+name: Weekly Leaderboard Email
+on:
+  schedule:
+    - cron: '0 13 * * 1' # Monday 13:00 UTC
+jobs:
+  email:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Generate leaderboard
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - run: pip install requests
+      - run: python3 scripts/generate-leaderboard.py
+      - name: Read top 10
+        id: top
+        run: |
+          head -n 20 docs/leaderboard/leaderboard.md > top.md
+          echo "::set-output name=body::$(sed ':a;N;$!ba;s/\n/\\n/g' top.md)"
+      - name: Send email
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USER }}
+          password: ${{ secrets.SMTP_PASS }}
+          subject: "Weekly Leaderboard"
+          from: "Helix CI <ci@example.com>"
+          body: ${{ steps.top.outputs.body }}
+          to: "team@example.com"

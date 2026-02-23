@@ -1,0 +1,26 @@
+name: Mermaid PR Preview Comment
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download mermaid svgs artifact
+        if: ${{ github.event.pull_request.number }}
+        uses: actions/download-artifact@v4
+        with:
+          name: mermaid-svgs
+          path: ./artifacts || true
+
+      - name: Post PR comment with SVG list
+        if: ${{ github.event.pull_request.number }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            **Mermaid diagram previews**
+            The rendered SVGs for this PR are attached as artifacts. Download them from the "Artifacts" tab or view them inline in the PR checks.

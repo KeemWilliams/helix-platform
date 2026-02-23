@@ -71,8 +71,11 @@ If validation fails:
 
 ## Checklist (required)
 
-- [ ] `docs/diagrams/MAP.md` updated with node -> repo path -> owner -> runbook anchor
-- [ ] Rendered SVG attached by CI (artifact: mermaid-svgs) or committed to branch
+- [ ] Diagram changes included? If yes:
+  - [ ] Updated `.mmd` file(s) committed
+  - [ ] Rendered `.svg` included OR CI render workflow will produce preview artifacts
+  - [ ] `docs/diagrams/MAP.md` updated if topology or owners changed
+  - [ ] Owner(s) listed in `docs/diagrams/MAP.md` have been requested for review
 - [ ] Verification outputs pasted above
 - [ ] Owner approvals obtained from all listed owners
 - [ ] Staging validation completed

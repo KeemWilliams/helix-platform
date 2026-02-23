@@ -50,3 +50,9 @@ jobs:
             exit 1
           fi
           echo "MAP.md was included with the architecture changes. Proceeding."
+
+      - name: Lint Mermaid Headers
+        if: steps.diagrams-changed.outputs.changed == 'true'
+        run: |
+          chmod +x scripts/lint-mermaid-headers.sh
+          ./scripts/lint-mermaid-headers.sh
