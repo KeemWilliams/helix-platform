@@ -1,0 +1,40 @@
+name: Render Mermaid Diagrams
+
+on:
+  push:
+    paths:
+      - 'docs/diagrams/**/*.mmd'
+  pull_request:
+    paths:
+      - 'docs/diagrams/**/*.mmd'
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install Mermaid CLI
+        run: npm install -g @mermaid-js/mermaid-cli
+
+      - name: Render SVGs
+        run: |
+          for file in docs/diagrams/*.mmd; do
+            if [ -f "$file" ]; then
+              base=$(basename "$file" .mmd)
+              echo "Rendering $base.svg..."
+              mmdc -i "$file" -o "docs/diagrams/$base.svg" -c .mermaid-config.json -b transparent
+            fi
+          done
+
+      - name: Commit rendered SVGs
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(docs): auto-render mermaid SVGs"
+          file_pattern: "docs/diagrams/*.svg"

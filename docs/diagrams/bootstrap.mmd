@@ -1,0 +1,19 @@
+%% Bootstrap Sequence v1.0
+%% Owner: Infra / CI Lead
+%% Last Validated: 2026-02-23
+
+sequenceDiagram
+  participant TF as Terraform
+  participant Talos as Talos Linux
+  participant K8s as Kubernetes API
+  participant CI as CI (GitHub Actions)
+  participant Git as GitOps Repo
+
+  TF->>Talos: Provision VMs & Networks
+  TF->>CI: Export Outputs (JSON)
+  CI->>Talos: Apply controlplane.yaml
+  Talos->>K8s: Bootstrap Cluster
+  CI->>K8s: Install Flux/ArgoCD
+  Git->>CI: Push Manifests
+  CI->>Git: Sign & Commit
+  Git->>K8s: Reconcile (GitOps)

@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-slo-rules
+  namespace: monitoring
+  labels:
+    release: platform
+spec:
+  groups:
+  - name: platform-availability
+    rules:
+    - alert: GlobalHighErrorRate
+      expr: sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m])) > 0.01
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Global 5xx error rate > 1%"
+        description: "The platform is experiencing elevated error rates across multiple services."
+
+    - alert: LonghornVolumeUnhealthy
+      expr: longhorn_volume_state{state!="attached"} == 1
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: "Longhorn volume is not attached"
+        description: "Volume {{ $labels.volume }} in state {{ $labels.state }} for more than 10 mins."
+
+    - alert: NodeNotReady
+      expr: kube_node_status_condition{condition="Ready",status="true"} != 1
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Node {{ $labels.node }} is not ready"
+        description: "A cluster node has been unavailable for more than 5 minutes."
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cilium-monitor
+  namespace: monitoring
+  labels:
+    release: platform
+spec:
+  selector:
+    matchLabels:
+      k8s-app: cilium
+  endpoints:
+  - port: metrics
+    interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: traefik-monitor
+  namespace: monitoring
+  labels:
+    release: platform
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+  endpoints:
+  - port: metrics
+    interval: 30s

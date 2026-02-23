@@ -1,0 +1,37 @@
+name: Promote to GitOps
+
+on:
+  workflow_run:
+    workflows: ["Build & Verify"]
+    types: [completed]
+    branches: [main]
+
+jobs:
+  promote:
+    name: GitOps Promotion
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Checkout GitOps Repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITOPS_REPO_TOKEN }}
+          repository: ${{ github.repository }} # In mono-repo, same as source
+
+      - name: Update Image Tag
+        run: |
+          IMAGE_TAG=${{ github.event.workflow_run.head_sha }}
+          sed -i "s/newTag: .*/newTag: $IMAGE_TAG/" gitops/apps/base/kustomization.yaml
+
+      - name: Commit & Push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "chore: promote app to $IMAGE_TAG"
+          git push origin main
+          
+      - name: Notify ArgoCD
+        run: |
+          curl -H "Authorization: Bearer ${{ secrets.ARGOCD_TOKEN }}" \
+          -X POST https://argocd.example.com/api/v1/applications/app/sync

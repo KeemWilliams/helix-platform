@@ -1,0 +1,193 @@
+%% Owner: platform-team@example.com
+%% Version: 1.0
+%% Last validated: 2026-02-23
+%% Summary: Full architecture overview with shapes, legend, and remediation path.
+%% Verification:
+%% talosctl --talosconfig ./talosconfig kubeconfig . && export KUBECONFIG=./kubeconfig && kubectl get nodes --show-labels
+%% kubectl -n ingress get svc traefik
+%% terraform output egress_ips
+%% kubectl -n monitoring get pods,servicemonitors,prometheusrules
+%%{init: {"theme":"base", "themeVariables":{"primaryColor":"#1f2937","secondaryColor":"#4f46e5","tertiaryColor":"#10b981","edgeLabelBackground":"#111827","fontFamily":"Inter, Arial, sans-serif"}, "flowchart":{"curve":"basis"}, "arrowMarkerAbsolute": true}}%%
+
+flowchart LR
+  %% class definitions
+  classDef ext fill:#f9f9f9,stroke:#666,stroke-width:1px,color:#333;
+  classDef infra fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+  classDef nodes fill:#fff8e1,stroke:#f57f17,stroke-width:1px,color:#000;
+  classDef apps fill:#e8eaf6,stroke:#283593,stroke-width:1px,color:#000;
+  classDef db fill:#fbe9e7,stroke:#bf360c,stroke-width:1px,color:#000;
+  classDef sec fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px,color:#000;
+  classDef remediate fill:#fff3e0,stroke:#ef6c00,stroke-width:1px,color:#000;
+
+  %% External swimlane
+  subgraph External ["External Environment"]
+    direction TB
+    U((User)):::ext
+    Partner((Partner APIs)):::ext
+    Proxies((Proxy Pool)):::ext
+    ObjStore[(Object Storage)]:::ext
+  end
+
+  %% Infra swimlane
+  subgraph Infra ["Cloud Infrastructure"]
+    direction TB
+    LB([Load Balancer]):::infra
+    NAT([NAT Egress]):::infra
+    DNS([DNS Zone]):::infra
+    IAM([IAM Service Accounts]):::sec
+    Buckets[(Backup Bucket)]:::infra
+  end
+
+  %% Cluster swimlane
+  subgraph Cluster ["Talos Kubernetes Cluster"]
+    direction TB
+
+    subgraph Pools ["Node Pools"]
+      InfraPool([Infra nodes]):::nodes
+      DBPool([DB nodes]):::nodes
+      ComputePool([Compute nodes]):::nodes
+      EgressPool([Egress nodes]):::nodes
+    end
+
+    subgraph Platform ["Platform Workloads"]
+      Cilium([Cilium CNI]):::sec
+      Traefik([Traefik Ingress\nrepo: gitops/platform/traefik]):::infra
+      CertManager([cert-manager]):::sec
+      Devtron([Devtron ArgoCD\nrepo: gitops/platform/devtron]):::apps
+      Remediate([Remediation service\nrepo: gitops/platform/remediation]):::remediate
+    end
+
+    subgraph AppsLayer ["Application Layer"]
+      Webhook([Webhook Receiver\nrepo: gitops/platform/webhook]):::apps
+      Queue([NATS / RabbitMQ]):::apps
+      LangGraph([LangGraph Orchestrator]):::apps
+      Ollama([Ollama Inference]):::apps
+      Steel([Steel Browser Farm]):::apps
+      AppServices([Customer Apps]):::apps
+    end
+
+    subgraph DataLayer ["Stateful Storage"]
+      PgBouncer([PgBouncer]):::db
+      Postgres[(Postgres HA)]:::db
+      Redis[(Redis)]:::db
+      Longhorn[(Longhorn CSI)]:::db
+    end
+
+    subgraph Observability ["Observability"]
+      Prometheus([Prometheus]):::apps
+      Grafana([Grafana]):::apps
+      Loki([Loki]):::apps
+      AlertManager([Alertmanager]):::apps
+    end
+  end
+
+  %% flows external -> infra -> cluster
+  U -->|HTTPS| LB
+  Partner -->|API calls| NAT
+  Proxies -->|proxy chain| NAT
+  ObjStore -->|backups| Buckets
+
+  LB -->|HTTP/HTTPS| Traefik
+  DNS -->|A/CNAME| LB
+  NAT -->|egress| EgressPool
+  Buckets -.->|restore| Postgres
+
+  %% internal flows
+  Traefik -->|ingress| Webhook
+  Webhook -.->|async| Queue
+  Queue -->|job| LangGraph
+  LangGraph -->|inference| Ollama
+  LangGraph -->|cache| Redis
+  LangGraph -->|db| PgBouncer
+  PgBouncer -->|pool| Postgres
+  Steel -->|egress via| EgressPool
+  Steel -->|tasks| Queue
+  AppServices -->|metrics| Prometheus
+
+  %% platform interactions
+  Cilium -->|network policies| Pools
+  Devtron -->|reconciles| Platform
+  Devtron -->|audit logs| Loki
+  AlertManager -->|notify| Remediate
+  Remediate -->|open rollback PR| Devtron
+
+  %% observability
+  Prometheus --> Grafana
+  Prometheus --> Loki
+  Prometheus -->|alerts| AlertManager
+
+  %% storage bindings
+  Longhorn --> Postgres
+  Longhorn --> Redis
+  Buckets -->|etcd snapshots| Buckets
+
+  %% Edge styling (linkStyle uses zero-based edge indices in the order edges are declared above)
+  %% Edge index reference:
+  %% 0: U --> LB
+  %% 1: Partner --> NAT
+  %% 2: Proxies --> NAT
+  %% 3: ObjStore --> Buckets
+  %% 4: LB --> Traefik
+  %% 5: DNS --> LB
+  %% 6: NAT --> EgressPool
+  %% 7: Buckets -.-> Postgres
+  %% 8: Traefik --> Webhook
+  %% 9: Webhook -.-> Queue
+  %% 10: Queue --> LangGraph
+  %% 11: LangGraph --> Ollama
+  %% 12: LangGraph --> Redis
+  %% 13: LangGraph --> PgBouncer
+  %% 14: PgBouncer --> Postgres
+  %% 15: Steel --> EgressPool
+  %% 16: Steel --> Queue
+  %% 17: AppServices --> Prometheus
+  %% 18: Cilium --> Pools
+  %% 19: Devtron --> Platform
+  %% 20: Devtron --> Loki
+  %% 21: AlertManager --> Remediate
+  %% 22: Remediate --> Devtron
+  %% 23: Prometheus --> Grafana
+  %% 24: Prometheus --> Loki
+  %% 25: Prometheus --> AlertManager
+  %% 26: Longhorn --> Postgres
+  %% 27: Longhorn --> Redis
+  %% 28: Buckets --> Buckets (etcd snapshots)
+
+  linkStyle 0 stroke:#1f77b4,stroke-width:2px           /* User -> LB: primary ingress (sync) */
+  linkStyle 4 stroke:#1f77b4,stroke-width:2px           /* LB -> Traefik: ingress path */
+  linkStyle 8 stroke:#2ca02c,stroke-width:1.6px         /* Traefik -> Webhook: normal request */
+  linkStyle 9 stroke:#ff7f0e,stroke-dasharray:5 5,stroke-width:1.4px /* Webhook -> Queue: async event */
+  linkStyle 10 stroke:#2ca02c,stroke-width:1.6px        /* Queue -> LangGraph: job dispatch */
+  linkStyle 13 stroke:#9467bd,stroke-width:1.6px        /* LangGraph -> PgBouncer: DB access */
+  linkStyle 21 stroke:#d62728,stroke-width:3px         /* AlertManager -> Remediate: critical control */
+  linkStyle 25 stroke:#ff9800,stroke-dasharray:4 4,stroke-width:1.4px /* Prometheus -> AlertManager: alerting */
+
+  %% visual legend (keeps diagram self-documenting)
+  subgraph Legend ["Legend and Edge Semantics"]
+    direction TB
+    L1[-->  sync request/response (HTTP/gRPC)]:::apps
+    L2[-.->  async / event (webhook, pub/sub)]:::apps
+    L3[==>  critical control path (auth, leader election)]:::apps
+    L4[<-->  bidirectional (replication, mutual TLS)]:::apps
+    L5[--o  optional / conditional]:::apps
+    L6[-.->|backup|  backup / restore flows]:::apps
+  end
+
+  %% Component links and tooltips
+  click Traefik "../../gitops/platform/traefik/" "Go to Traefik manifests"
+  click Cilium "../../gitops/platform/cilium/" "Go to Cilium CNI manifests"
+  click CertManager "../../gitops/platform/cert-manager/" "Go to cert-manager manifests"
+  click Devtron "../../gitops/platform/devtron/" "Go to Devtron manifests"
+  click Remediate "../../gitops/platform/remediation/" "Go to Remediation service"
+  click Webhook "../../gitops/platform/webhook/" "Go to Webhook manifests"
+  click LangGraph "../../gitops/platform/langgraph/" "Go to LangGraph manifests"
+  click Ollama "../../gitops/platform/ollama/" "Go to Ollama manifests"
+  click Steel "../../gitops/platform/steel-browser/" "Go to Steel Browser Farm"
+  click PgBouncer "../../gitops/platform/postgres/" "Go to PgBouncer manifests"
+  click Postgres "../../gitops/platform/postgres/" "Go to Postgres HA manifests"
+  click Redis "../../gitops/platform/redis/" "Go to Redis manifests"
+  click Longhorn "../../gitops/platform/longhorn/" "Go to Longhorn CSI manifests"
+  click Prometheus "../../gitops/platform/observability/prometheus/" "Go to Prometheus manifests"
+  click Grafana "../../gitops/platform/observability/grafana/" "Go to Grafana manifests"
+  click Loki "../../gitops/platform/observability/loki/" "Go to Loki manifests"
+  click AlertManager "../../gitops/platform/observability/prometheus/" "Go to Alertmanager manifests"

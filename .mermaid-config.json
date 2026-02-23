@@ -1,0 +1,12 @@
+{
+    "theme": "base",
+    "themeVariables": {
+        "primaryColor": "#1f2937",
+        "secondaryColor": "#4f46e5",
+        "tertiaryColor": "#10b981",
+        "edgeLabelBackground": "#111827"
+    },
+    "flowchart": {
+        "curve": "basis"
+    }
+}

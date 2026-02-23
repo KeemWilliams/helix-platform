@@ -1,0 +1,20 @@
+%% Application Logic Flow v1.0
+%% Owner: AI / Platform Lead
+%% Last Validated: 2026-02-23
+
+sequenceDiagram
+  participant Web as Webhook Receiver
+  participant Q as NATS Queue
+  participant LG as LangGraph
+  participant OL as Ollama (Local LLM)
+  participant ST as Steel Browser
+  participant DB as Postgres (PgBouncer)
+
+  Web->>Q: Enqueue (HMAC Validated)
+  Q->>LG: Process Task
+  LG->>OL: Prompt / Inference
+  OL-->>LG: Completion
+  LG->>ST: Scrape Context (if needed)
+  ST-->>LG: Page Content
+  LG->>DB: Persist Results
+  LG->>Q: Acknowledge (Done)

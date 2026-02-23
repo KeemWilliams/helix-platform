@@ -1,0 +1,26 @@
+%% Failure Modes & Recovery v1.0
+%% Owner: SRE / On-call Lead
+%% Last Validated: 2026-02-23
+
+graph TD
+  subgraph Incident ["Trigger Event"]
+    FAIL1[Node Loss]
+    FAIL2[DB Corruption]
+    FAIL3[Egress Blocked]
+  end
+
+  subgraph Recovery_Path ["Automated & Manual Actions"]
+    FAIL1 -->|Auto| AutoHealing[Talos Self-Heal / K8s Reschedule]
+    FAIL2 -->|Manual| PITR[Postgres Restore from S3]
+    FAIL3 -->|Manual| ProxyReset[Rotate Egress IPs / Fix Policy]
+  end
+
+  subgraph Outcome ["Healthy State"]
+    AutoHealing --> Ready[Service Restored]
+    PITR --> Ready
+    ProxyReset --> Ready
+  end
+
+  %% Triage Command:
+  %% kubectl get pods -A --field-selector=status.phase!=Running
+  %% See: docs/runbook.md

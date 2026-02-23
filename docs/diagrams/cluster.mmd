@@ -1,0 +1,32 @@
+%% Cluster Architecture v1.0
+%% Owner: Infrastructure Lead
+%% Last Validated: 2026-02-23
+
+graph TD
+  subgraph CP_Pool ["Control Plane Pool (3 Nodes)"]
+    CP1[cp-01]
+    CP2[cp-02]
+    CP3[cp-03]
+  end
+
+  subgraph Worker_Standard ["General Workload Pool"]
+    W1[worker-01]
+    W2[worker-02]
+  end
+
+  subgraph Worker_High ["High-Compute / GPU Pool"]
+    WH1[worker-high-01]
+    WH2[worker-high-02]
+  end
+
+  subgraph Storage_Tier ["Stateful Storage"]
+    CP_Pool --- ETCD[(etcd)]
+    Worker_Standard --- LH[(Longhorn HA)]
+    Worker_High --- LH
+  end
+
+  %% Node Labels:
+  %% pool=worker-standard, pool=worker-high
+  %% Verification Commands:
+  %% kubectl get nodes -L pool
+  %% kubectl get sc

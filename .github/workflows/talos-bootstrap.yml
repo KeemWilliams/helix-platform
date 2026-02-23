@@ -1,0 +1,48 @@
+name: Talos Bootstrap
+
+on:
+  workflow_run:
+    workflows: ["Terraform CI"]
+    types: [completed]
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    name: Cluster Bootstrap
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Terraform Outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-outputs
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Install talosctl
+        run: |
+          curl -sL https://talos.dev/install | sh
+
+      - name: Generate Configs
+        run: |
+          ./scripts/generate-talos-configs.sh terraform-outputs.json
+
+      - name: Apply Config & Bootstrap
+        run: |
+          export CONTROL_IP=$(jq -r '.control_ips.value[0]' terraform-outputs.json)
+          talosctl apply-config --nodes $CONTROL_IP --file controlplane.yaml --insecure
+          talosctl bootstrap --nodes $CONTROL_IP
+        env:
+          TALOSCONFIG: ./talosconfig
+
+      - name: Export Kubeconfig
+        run: |
+          talosctl kubeconfig .
+          tar -czf kubeconfig.tgz kubeconfig
+
+      - name: Upload Kubeconfig
+        uses: actions/upload-artifact@v4
+        with:
+          name: kubeconfig
+          path: kubeconfig.tgz

@@ -1,0 +1,27 @@
+%% Overview Diagram v1.0
+%% Owner: Platform Architects
+%% Last Validated: 2026-02-23
+
+graph TB
+  subgraph Public ["Public Tier"]
+    User((User)) -->|HTTPS/WAF| CDN[Cloudflare CDN]
+    CDN -->|Load Balance| AppLB[Hetzner LB]
+  end
+
+  subgraph Cluster ["Platform Tier"]
+    AppLB --> Ingress[Cilium Ingress]
+    Ingress --> Webhook[Webhook Receiver]
+    Webhook --> NATS[NATS Message Broker]
+    NATS --> LangGraph[LangGraph Orchestrator]
+    LangGraph --> AI[Inference Engine]
+    LangGraph --> DB[Postgres HA]
+  end
+
+  subgraph Management ["Control Plane"]
+    GitOps[Devtron / ArgoCD] -.->|reconcile| Cluster
+    Vault[HashiCorp Vault] -.->|secrets| Cluster
+  end
+
+  %% Verification Commands:
+  %% kubectl get applications -n argocd
+  %% kubectl get nodes -o wide

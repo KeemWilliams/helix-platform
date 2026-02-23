@@ -1,0 +1,23 @@
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-orchestrator-to-pgbouncer
+  namespace: platform
+spec:
+  description: "Allow orchestrators (n8n, LangGraph) to connect to PgBouncer on the DB port."
+  endpointSelector:
+    matchLabels:
+      app: pgbouncer
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        app: n8n
+    - matchLabels:
+        app: langgraph
+    toPorts:
+    - ports:
+      - port: "6432"
+        protocol: TCP
+  egress:
+  - toEntities:
+    - all

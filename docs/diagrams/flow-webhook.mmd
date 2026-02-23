@@ -1,0 +1,83 @@
+%% Owner: platform-team@example.com
+%% Version: 1.0
+%% Last validated: 2026-02-23
+%% Summary: Internal flows for webhook -> orchestrator -> AI -> DB and scraper egress patterns.
+%% Verification:
+%% talosctl --talosconfig ./talosconfig kubeconfig . && export KUBECONFIG=./kubeconfig && kubectl get nodes --show-labels
+%% kubectl -n ingress get svc traefik
+%% terraform output egress_ips
+%% kubectl -n monitoring get pods,servicemonitors,prometheusrules
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1f2937","secondaryColor":"#4f46e5","tertiaryColor":"#10b981","edgeLabelBackground":"#111827","fontFamily":"Inter, Arial, sans-serif"},"flowchart":{"curve":"basis"},"arrowMarkerAbsolute":true}}%%
+
+flowchart LR
+  %% class defs
+  classDef ext fill:#f9f9f9,stroke:#666,stroke-width:1px,color:#333;
+  classDef infra fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
+  classDef apps fill:#e8eaf6,stroke:#283593,stroke-width:1px,color:#000;
+  classDef db fill:#fbe9e7,stroke:#bf360c,stroke-width:1px,color:#000;
+  classDef sec fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px,color:#000;
+
+  subgraph External ["External"]
+    direction TB
+    User((User)):::ext
+    PartnerAPI((Partner API)):::ext
+  end
+
+  subgraph Infra ["Cloud / Egress"]
+    direction TB
+    LB([Load Balancer]):::infra
+    EgressProxy([Egress Proxy / Envoy]):::infra
+    NAT([NAT / Stable Egress IPs]):::infra
+  end
+
+  subgraph Cluster ["Talos Cluster"]
+    direction TB
+    Traefik([Traefik Ingress]):::infra
+    Webhook([Webhook Receiver\n(validates, enqueues)]):::apps
+    Queue([NATS / RabbitMQ]):::apps
+    n8n([n8n Orchestrator]):::apps
+    LangGraph([LangGraph Orchestrator]):::apps
+    Ollama([Ollama Inference]):::apps
+    PgBouncer([PgBouncer Pooler]):::db
+    Postgres[(Postgres HA)]:::db
+    Redis[(Redis Cache)]:::db
+    Steel([Steel Browser Farm\n(scraper) - egress only]):::apps
+    CallbackWorker([Callback Worker]):::apps
+  end
+
+  %% flows: user -> ingress -> webhook -> queue -> orchestrator -> db / inference -> callback
+  User -->|HTTPS| LB --> Traefik -->|HTTP| Webhook
+  Webhook -.->|async event (idempotent)| Queue
+  Queue -->|job| n8n
+  n8n -->|invoke| LangGraph
+  LangGraph -->|inference request| Ollama
+  LangGraph -->|cache| Redis
+  LangGraph -->|db write via| PgBouncer --> Postgres
+  n8n -->|publish completion| Queue
+  Queue -->|callback job| CallbackWorker
+  CallbackWorker -->|HTTP callback (idempotent)| User
+
+  %% scraper flow: scheduler -> steel -> egress -> queue -> ai -> db
+  Steel -->|egress via proxy| EgressProxy --> NAT
+  Steel -->|publish parsed data| Queue
+  Queue -->|job| LangGraph
+  LangGraph -->|inference| Ollama
+  LangGraph -->|store| PgBouncer --> Postgres
+
+  %% external API calls from orchestrator or workers
+  n8n -->|external API calls via egress| EgressProxy
+  CallbackWorker -->|external callback via egress| EgressProxy
+
+  %% observability & control
+  Queue -->|metrics| Prometheus([Prometheus]):::apps
+  Prometheus -->|alerts| AlertManager([Alertmanager]):::apps
+  AlertManager -->|trigger| Remediate([Remediation service]):::sec
+  Remediate -->|open rollback PR| Devtron([Devtron / ArgoCD]):::apps
+
+  %% legend
+  subgraph Legend ["Edge semantics"]
+    direction TB
+    S1[--> sync request/response (HTTP/gRPC)]
+    S2[-.-> async / event (pub/sub, webhook)]
+    S3[==> critical control path]
+  end

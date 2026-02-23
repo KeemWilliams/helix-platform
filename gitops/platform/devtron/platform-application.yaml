@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-manifests
+  namespace: argocd
+  labels:
+    app.kubernetes.io/managed-by: devtron
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/yourorg/your-repo.git'
+    targetRevision: HEAD
+    path: gitops/platform
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: platform
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/template/spec/containers/0/image

@@ -1,0 +1,20 @@
+name: Performance Smoke Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  k6_test:
+    name: k6 Performance Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run k6 smoke test
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: infrastructure/scripts/smoke-test.js
+          flags: --env BASE_URL=${{ secrets.STAGING_URL }}

@@ -1,0 +1,25 @@
+%% Network Topology v1.0
+%% Owner: Network & Security Lead
+%% Last Validated: 2026-02-23
+
+graph LR
+  subgraph Ingress_Path ["Inbound Connectivity"]
+    External((Internet)) --> WAF[Cloudflare WAF]
+    WAF --> LB[Hetzner LB]
+    LB --> Gateway[Cilium Gateway API]
+  end
+
+  subgraph Egress_Path ["Secure Outbound Tier"]
+    AI_Pod[AI / Scraper Pods] --> Proxy[Envoy Egress Proxy]
+    Proxy --> NAT[NAT Gateway / Floating IP]
+    NAT --> Partners((Third Party APIs))
+  end
+
+  subgraph Segmentation ["Security Zones"]
+    Gateway --> APP_NS[Application Namespace]
+    APP_NS -- Default Deny --> Egress_Path
+  end
+
+  %% Verification Commands:
+  %% kubectl get ciliumnetworkpolicies -A
+  %% curl -I --proxy http://egress-gateway:3128 http://google.com

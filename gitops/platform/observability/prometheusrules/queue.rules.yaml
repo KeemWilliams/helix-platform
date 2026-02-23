@@ -1,0 +1,21 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: platform-queue-rules
+  namespace: monitoring
+  labels:
+    role: alert-rules
+spec:
+  groups:
+    - name: queue.rules
+      rules:
+        - alert: QueueBacklogHigh
+          expr: |
+            sum by (stream) (nats_stream_msgs_pending{job="nats"}) > 100
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "High queue backlog for {{ $labels.stream }}"
+            description: "The message queue stream {{ $labels.stream }} has more than 100 pending messages for over 5 minutes. Investigate consumers and scaling. Adjust threshold to match expected throughput."
