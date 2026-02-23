@@ -1,0 +1,48 @@
+## Core Tools and Technologies
+Here are the components that Devtron uses internally as part of its own architecture:
+[kubernetes/kubernetes](https://github.com/kubernetes/kubernetes)
+[Apache License 2.0](https://github.com/kubernetes/kubernetes/blob/master/LICENSE)
+[golang/go](https://github.com/golang/go)
+[BSD 3-Clause License](https://github.com/golang/go/blob/master/LICENSE)
+[helm/helm](https://github.com/helm/helm)
+[Apache License 2.0](https://github.com/helm/helm/blob/main/LICENSE)
+[aquasecurity/trivy](https://github.com/aquasecurity/trivy)
+[Apache License 2.0](https://github.com/aquasecurity/trivy/blob/main/LICENSE)
+[nats-io/nats-server](https://github.com/nats-io/nats-server)
+[Apache License 2.0](https://github.com/nats-io/nats-server/blob/main/LICENSE)
+[dexidp/dex](https://github.com/dexidp/dex)
+[Apache License 2.0](https://github.com/dexidp/dex/blob/master/LICENSE)
+[casbin/casbin](https://github.com/casbin/casbin)
+[Apache License 2.0](https://github.com/casbin/casbin/blob/master/LICENSE)
+
+## Optional Components
+Here are some of the optional components that Devtron supports:
+[argoproj/argo-cd](https://github.com/argoproj/argo-cd)
+[Apache License 2.0](https://github.com/argoproj/argo-cd/blob/master/LICENSE)
+[quay/clair](https://github.com/quay/clair)
+[Apache License 2.0](https://github.com/quay/clair/blob/main/LICENSE)
+[kedacore/keda](https://github.com/kedacore/keda)
+[Apache License 2.0](https://github.com/kedacore/keda/blob/main/LICENSE)
+[external-secrets/external-secrets](https://github.com/external-secrets/external-secrets)
+[Apache License 2.0](https://github.com/external-secrets/external-secrets/blob/main/LICENSE)
+[prometheus/prometheus](https://github.com/prometheus/prometheus)
+[Apache License 2.0](https://github.com/prometheus/prometheus/blob/main/LICENSE)
+
+## ❓ FAQs & Troubleshooting
+- For troubleshooting Devtron please [refer to this docs page](https://docs.devtron.ai/resources/devtron-troubleshoot)
+[refer to this docs page](https://docs.devtron.ai/resources/devtron-troubleshoot)
+
+## 👥 Community
+Get updates on Devtron's development and chat with project maintainers, contributors, and community members
+- Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+- Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
+- Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
+- Devtron is trusted by communities all across the globe. The list of organizations using Devtron can be found [here](https://github.com/devtron-labs/devtron/blob/main/USERS.md).
+[@DevtronL on Twitter](https://twitter.com/DevtronL)
+[GitHub Issues](https://github.com/devtron-labs/devtron/issues)
+[Devtron Blogs](https://devtron.ai/blog/)
+[here](https://github.com/devtron-labs/devtron/blob/main/USERS.md)
+
+## 🤝 Contribute
+Check out our [contributing guidelines](https://github.com/devtron-labs/devtron/blob/main/CONTRIBUTING.md). Included, are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contribution.
+Please look at our [community contributions](https://github.com/devtron-labs/devtron/blob/main/COMMUNITY_CONTRIBUTIONS.md) and feel free to create a video or blog around Devtron and add your valuable contribution to the list.

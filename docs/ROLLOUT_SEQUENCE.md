@@ -13,15 +13,11 @@ sops --decrypt gitops/platform/egress/egress-values.yaml | yq .
 
 ---
 
-## Phase 1: Devtron Core
+## Phase 1: Devtron Core (Helm Based)
 
-1. **Deploy Argo CD Infrastructure**
+See `docs/ROLLOUT_SEQUENCE_PHASE1_HELM.md` for explicit prerequisites and step-by-step commands to properly integrate the Devtron Operator along with its embedded ArgoCD controller instance.
 
-```bash
-# Apply Argo CD manifests into the argocd namespace
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-```
+**CRITICAL WARNING:** We are no longer applying raw ArgoCD manifests from `argoproj/argo-cd`. Ensure you rely strictly on the custom Devtron Helm chart `values.devtron.custom.yaml` installation pattern to avoid infrastructure overlap.
 
 1. **Apply Network Pre-requisites**
 Ensure Devtron components can communicate before any restrictions:

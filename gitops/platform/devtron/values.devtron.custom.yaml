@@ -1,0 +1,91 @@
+# Helix Platform: Devtron Custom Values
+# Owner: @platform-owner @db-owner @security-lead
+# 
+# Purpose: Installs Devtron without redundant stateful sets. Connects Devtron completely to our external 
+# Highly Available (HA) CloudNativePG cluster, HA NATS, and Redis. Configures SSO and strict Traefik Ingress.
+
+installer:
+  modules:
+    - cicd
+  
+# ------------------------------------------------------------------------------
+# ArgoCD Management
+# ------------------------------------------------------------------------------
+# Set this to true to allow Devtron to install its bundled ArgoCD instance.
+# IMPORTANT: Ensure no raw ArgoCD manifests are applied manually to the cluster!
+argo-cd:
+  enabled: true
+
+# ------------------------------------------------------------------------------
+# Database Configurations (CloudNativePG HA Integration)
+# ------------------------------------------------------------------------------
+postgres:
+  enabled: false # Disable bundled postgres
+  external:
+    host: "platform-db-cluster-rw.platform.svc.cluster.local"
+    port: 5432
+    database: "devtron_db" # Make sure this DB exists or CNPG creates it
+    user: "devtron_user"
+    # SOPS PLACEHOLDER: Replace with actual password or Secret reference
+    password: "<SOPS_ENCRYPTED_DB_PASSWORD>"
+    sslmode: "require"
+
+# ------------------------------------------------------------------------------
+# Redis Cache (External)
+# ------------------------------------------------------------------------------
+redis:
+  enabled: false # Disable bundled Redis
+  external:
+    host: "platform-redis-master.platform.svc.cluster.local"
+    port: 6379
+    # SOPS PLACEHOLDER: Replace with actual password
+    password: "<SOPS_ENCRYPTED_REDIS_PASSWORD>"
+
+# ------------------------------------------------------------------------------
+# NATS Messaging Pipeline (External)
+# ------------------------------------------------------------------------------
+nats:
+  enabled: false # Disable bundled NATS
+  external:
+    url: "nats://platform-nats.platform.svc.cluster.local:4222"
+    # SOPS PLACEHOLDER:
+    token: "<SOPS_ENCRYPTED_NATS_TOKEN>"
+
+# ------------------------------------------------------------------------------
+# Ingress and TLS (Traefik)
+# ------------------------------------------------------------------------------
+ingress:
+  enabled: true
+  className: "traefik"
+  # Default deny public LB access without SSO
+  allowPublic: false
+  annotations:
+    kubernetes.io/ingress.class: traefik
+    traefik.ingress.kubernetes.io/router.tls: "true"
+    traefik.ingress.kubernetes.io/router.middlewares: "devtroncd-devtron-headers@kubernetescrd"
+  hosts:
+    - host: devtron.example.com
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+# ------------------------------------------------------------------------------
+# SSO / OIDC Authentication
+# ------------------------------------------------------------------------------
+auth:
+  oidc:
+    enabled: true
+    issuer: "https://auth.example.com/"
+    # SOPS PLACEHOLDER:
+    clientId: "<SOPS_ENCRYPTED_CLIENT_ID>"
+    clientSecret: "<SOPS_ENCRYPTED_CLIENT_SECRET>"
+    redirectUris:
+      - "https://devtron.example.com/api/dex/callback"
+
+# ------------------------------------------------------------------------------
+# CI/CD Observability Only Mode
+# ------------------------------------------------------------------------------
+# Note: GitHub Actions is handling our CI builds and Cosign signatures.
+# Devtron is primarily utilized here for rich GitOps CD visualization and metrics.
+pipelines:
+  enabled: false
