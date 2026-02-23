@@ -1,0 +1,89 @@
+name: Promote Image to GitOps
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: 'The fully qualified image to promote (e.g., ghcr.io/yourorg/n8n:sha-12345)'
+        required: true
+      app_name:
+        description: 'The name of the application to update in GitOps (e.g., n8n, webhook, langgraph)'
+        required: true
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install cosign
+        run: |
+          COSIGN_VERSION="2.1.0"
+          curl -sSL -o cosign.tar.gz "https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}/cosign-linux-amd64.tar.gz"
+          tar -xzf cosign.tar.gz cosign
+          sudo mv cosign /usr/local/bin/cosign
+
+      - name: Verify cosign signature
+        run: |
+          # The public key should be stored in a GitHub Secret
+          echo "${{ secrets.COSIGN_PUB }}" > cosign.pub
+          cosign verify --key cosign.pub "${{ github.event.inputs.image }}"
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          # Assumes monorepo or standard local checkout. Customize if GitOps is in a separate repo.
+          ref: main
+
+      - name: Update image tag in GitOps configurations
+        run: |
+          git config user.name "ci-bot"
+          git config user.email "ci-bot@yourorg.com"
+          
+          APP_NAME="${{ github.event.inputs.app_name }}"
+          IMAGE="${{ github.event.inputs.image }}"
+          TAG="${IMAGE##*:}"
+          
+          # Attempt to update values.yaml for the app if using helm/raw manifests
+          VALUES_FILE="gitops/platform/${APP_NAME}/values.yaml"
+          if [ -f "$VALUES_FILE" ]; then
+             sed -i "s/tag: .*/tag: ${TAG}/g" "$VALUES_FILE"
+             sed -i "s|repository: .*|repository: ${IMAGE%:*}|g" "$VALUES_FILE"
+             echo "Updated values.yaml for $APP_NAME"
+          fi
+          
+          # Attempt to update via Kustomize if applicable
+          KUSTOMIZATION_FILE="gitops/platform/kustomization.yaml"
+          if [ -f "$KUSTOMIZATION_FILE" ]; then
+            cd gitops/platform
+            # If kustomize is installed in the runner
+            if command -v kustomize &> /dev/null; then
+              kustomize edit set image "ghcr.io/yourorg/${APP_NAME}=${IMAGE}"
+            fi
+            cd ../..
+          fi
+
+          git checkout -b "chore/promote-${APP_NAME}-${TAG}"
+          git add gitops/platform/
+          
+          # Only commit if there are changes
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: promote ${APP_NAME} to ${TAG}"
+            git push origin "chore/promote-${APP_NAME}-${TAG}"
+          else
+            echo "No changes to commit for ${APP_NAME}=${TAG}"
+            exit 0
+          fi
+
+      - name: Open Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: promote image ${{ github.event.inputs.image }}"
+          title: "Promote ${{ github.event.inputs.app_name }} to image tag ${{ github.event.inputs.image }}"
+          body: |
+            Promotion automated by CI. 
+            
+            **App**: `${{ github.event.inputs.app_name }}`
+            **Image**: `${{ github.event.inputs.image }}`
+            
+            Cosign signatures have been explicitly verified.
+            Smoke tests will run upon merge or deployment.
+          branch: "chore/promote-${{ github.event.inputs.app_name }}-${{ github.sha }}"
