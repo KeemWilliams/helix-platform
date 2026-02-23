@@ -1,0 +1,38 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: chaos-consumer-restart-test
+  namespace: platform
+  labels:
+    component: chaos-engineering
+    test_type: pod-termination
+spec:
+  ttlSecondsAfterFinished: 3600 # Cleanup completed jobs after 1 hour
+  template:
+    metadata:
+      name: chaos-consumer-restart-test
+      labels:
+        app: chaos-runner
+    spec:
+      serviceAccountName: remediation-runner # Requires privileges to delete pods in platform namespace
+      restartPolicy: Never
+      containers:
+      - name: chaos-executor
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/bash
+        - -c
+        - |
+          echo "Starting Chaos Experiment: Consumer Restart"
+          echo "Targeting n8n and langgraph deployments..."
+
+          # Aggressively delete orchestrator pods
+          kubectl delete pods -n platform -l "app in (n8n, langgraph)" --grace-period=0 --force
+
+          if [ $? -eq 0 ]; then
+            echo "Success: Consumer pods forcefully terminated."
+            exit 0
+          else
+            echo "Error: Failed to terminate consumer pods."
+            exit 1
+          fi
