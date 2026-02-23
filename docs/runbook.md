@@ -1,132 +1,70 @@
-# Emergency Operational Runbook (v1.1)
+# Helix Platform Runbooks
 
-This is the **Source of Truth** for on-call operators. Use these commands to stabilize the cluster during an incident.
+## 1. Emergency Rollback Procedure (GitOps / ArgoCD)
 
-## 🆘 Immediate Triage (First 5–10 Minutes)
+If a recent GitOps commit breaks platform reconciliation or triggers a rollout failure, follow this procedure to safely revert:
 
-1. **Check Cluster Health**
-   - `talosctl kubeconfig . && export KUBECONFIG=./kubeconfig`
-   - `kubectl get nodes -o wide`
-   - `kubectl get pods -A --field-selector=status.phase!=Running`
-2. **Check Cloud Console**: Verify Hetzner Cloud for node status and load balancer health.
-3. **Check Monitoring**: Look at Prometheus alerts and Loki logs for recent errors.
+### Step 1: Automated Revert via CI
 
-## 🛠️ Out-of-Band Access Methods
+1. Navigate to your repository's **Actions** tab.
+2. If `post-merge-health.yml` detected the failure, an **Auto revert** PR should already be open.
+3. Review and merge the revert PR. Devtron (ArgoCD) will automatically reconcile back to the stable state.
 
-### 1. Cloud Provider Console (Recommended First)
+### Step 2: Manual Revert (If CI Fails)
 
-Use the Hetzner Cloud Console to view instance serial/console logs or boot into **Rescue Mode**. Fastest way to see kernel panics or network misconfigurations.
+If the automated revert failed or the GitHub Action runner is down:
 
-### 2. NetBird / Bastion
+```bash
+# Clone the repository locally
+git clone git@github.com:yourorg/yourrepo.git && cd yourrepo
 
-If the control plane is reachable but node SSH/API is not, use the **NetBird** VPN mesh to reach the private network.
+# Locate the offending commit in the gitops/platform tree
+git log --oneline gitops/platform/
 
-- `ssh -J user@bastion user@10.x.x.x`
+# Revert the commit and push
+git revert <faulty-commit-sha>
+git push origin main
+```
 
-## 🐧 Cluster-Level Recovery (Talos)
+### Step 3: Force ArgoCD Sync
 
-| Scenario | Command |
-| :--- | :--- |
-| **Node Health** | `talosctl --talosconfig ./talosconfig health` |
-| **Fetch Logs** | `talosctl --talosconfig ./talosconfig logs --follow <node-ip>` |
-| **Restart Kubelet** | `talosctl --talosconfig ./talosconfig service restart kubelet --nodes <node-ip>` |
-| **Reapply Config** | `talosctl apply-config --nodes <node-ip> --file worker.yaml` |
-| **Reboot Node** | `talosctl reboot --nodes <node-ip>` |
+If ArgoCD is stuck or taking too long to poll the repository:
 
-## 📦 Storage & Longhorn Recovery
-
-- **Check Health**: `kubectl -n longhorn-system get pods`
-- **Degraded Replicas**: Use Longhorn UI to failover. **Do not** immediately delete volumes.
-- **Port-Forward UI**: `kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80`
-
-## 🛠️ Devtron / GitOps Emergency Ops
-
-| Scenario | Action | Command |
-| :--- | :--- | :--- |
-| **Pause Sync** | Stop reconciliation | `kubectl -n devtron annotate application <app> argocd.argoproj.io/sync-wave=-1` |
-| **Scale Down** | Kill controller | `kubectl -n devtron scale deployment devtron-controller --replicas=0` |
-| **Rollback** | Git Revert | `git revert <bad-commit> && git push origin main` |
-| **Verify Sync** | Check status | `kubectl -n devtron get applications.argoproj.io <app> -o jsonpath='{.status.sync.status}'` |
-| **Rotate Token**| Revoke SA | `kubectl -n devtron delete secret devtron-sa-token` |
-
-## 📉 Escalation Matrix
-
-1. **Level 1**: On-call SRE.
-2. **Level 2**: Platform/Infra Lead.
-3. **Level 3**: Security Lead (if compromise suspected).
+```bash
+# Sync the platform application manually
+kubectl -n argocd get applications
+kubectl config set-context --current --namespace=argocd
+# Force sync (requires ArgoCD CLI)
+argocd app sync platform-manifests --force
+```
 
 ---
 
-## 🏁 Emergency Checklist (Copy-Paste)
+## 2. Emergency Network Allow Rule (Default-Deny Lockout)
 
-1. `talosctl kubeconfig . && export KUBECONFIG=./kubeconfig`
-2. `kubectl get nodes -o wide`
-3. `kubectl get pods -A --field-selector=status.phase!=Running`
-4. `talosctl health --talosconfig ./talosconfig`
-5. `kubectl -n longhorn-system get volumes`
+If `default-deny` policies are actively blocking Devtron controllers or the Repo Server from reaching GitHub or the Kubernetes API Server, apply the temporary emergency allow rule.
 
-## <a name="stuck-webhook-job"></a>🚨 Stuck Webhook Job
+### Apply the Emergency Policy
 
-**Severity:** P2 (affects processing but not entire platform)
+```bash
+# This will temporarily allow broad egress from the argocd namespace
+kubectl apply -f gitops/platform/network-policies/emergency-allow.yaml
+```
 
-**Symptoms:**
+### Verify Recovery
 
-- Webhook receives requests but jobs remain in Queue with status "pending" or "retrying".
-- n8n or LangGraph consumers show high restart counts or zero consumption.
-- Queue depth metric (nats_queue_depth) rising above threshold.
+```bash
+# Check if the repo server can now fetch the manifests
+kubectl -n argocd logs deploy/argocd-repo-server | tail -n 50
 
-**Immediate checks (5 minutes)**
+# Check if syncs are progressing
+kubectl -n argocd get applications -o wide
+```
 
-1. Verify webhook accepted the request:
-   - `kubectl -n platform logs deploy/webhook --since=10m | grep <request-id>`
-   - Confirm webhook returned 202/200 and logged idempotency key.
+### Remove the Emergency Policy
 
-2. Check queue health and consumers:
-   - `kubectl -n platform get pods -l app=queue`
-   - `kubectl -n platform exec -it svc/queue -- nats stream info <stream>` (or use management UI)
-   - Check consumer lag and pending messages.
+**CRITICAL**: Do not leave this policy active. Once the specific, granular egress rules are fixed in the repository and reconciled by Devtron, delete the emergency policy.
 
-3. Check orchestrator (n8n / LangGraph) status:
-   - `kubectl -n platform get pods -l app=n8n`
-   - `kubectl -n platform logs deploy/n8n --since=15m | tail -n 200`
-   - Look for errors: DB connection refused, auth errors, OOMKilled.
-
-4. Check DB pool usage:
-   - `kubectl -n platform exec -it deploy/pgbouncer -- psql -c "SHOW POOLS;"` (or check metrics)
-   - Confirm PgBouncer has available connections.
-
-**Quick mitigations (10–20 minutes)**
-A. If consumers are crashed / OOM:
-
-- Scale up consumer replicas temporarily:
-     `kubectl -n platform scale deploy n8n --replicas=3`
-- Check memory limits; if OOM, increase limits in a safe increment and redeploy.
-
-B. If DB connections exhausted:
-
-- Restart PgBouncer to clear stale connections:
-     `kubectl -n platform rollout restart deploy/pgbouncer`
-- If Postgres is overloaded, scale read replicas or reduce consumer concurrency.
-
-C. If queue backlog is large and consumers healthy:
-
-- Temporarily increase consumer replicas or throttle producer (webhook) via rate limit:
-     `kubectl -n platform patch deploy webhook -p '{"spec":{"template":{"metadata":{"annotations":{"rate-limit":"true"}}}}}'`
-
-D. If egress or external API calls are failing (n8n external steps):
-
-- Check EgressProxy logs and NAT egress IPs.
-- If proxy credentials expired, rotate via Vault and restart affected pods.
-
-**Post‑incident (within 24 hours)**
-
-1. Record incident in `docs/postmortems/` with timeline, root cause, and action items.
-2. Add or adjust Prometheus alerts:
-   - `queue_depth > X` for 5m
-   - `consumer_restart_rate > Y`
-   - `pgbouncer_free_connections < Z`
-3. Add a test to `tests/smoke/` that simulates a webhook -> full workflow and verifies completion.
-4. If remediation was manual, add an automated playbook to `platform-scripts/remediation/playbooks/` for safe restart/scale steps.
-
-**Owner:** @platform-owner
-**Escalation:** If unable to restore within 30 minutes, page on-call SRE and follow full incident runbook.
+```bash
+kubectl delete -f gitops/platform/network-policies/emergency-allow.yaml
+```
