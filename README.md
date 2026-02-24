@@ -1,14 +1,14 @@
-# Helix Platform
+![Helix Platform Social Preview](./docs/assets/social-preview.png)
 
-**Helix Platform** — founder‑grade, GitOps‑driven platform reference architecture for multi‑cluster Kubernetes operations. Built by **Wakeem (Keem) Williams**.
+# Helix Stax — The Future of Autonomous, Secure Infrastructure
 
-This repo documents the architecture, roadmap, and operational identity of Helix Platform, including the **Iron Spider** autonomous operations subsystem.
+> **Architecture v3.3 (Security-First Edition)**  
+> **Lead Architect:** [Wakeem Williams](https://github.com/keemwilliams)  
+> **Status:** Production-Ready Reference Suite
 
 ---
 
 ## 🏛️ Project Vision
-
-![Helix Platform Social Preview](./docs/assets/social-preview.png)
 
 I am **Wakeem Williams**, and I build infrastructure that doesn't just run code—it protects it. The **Helix Platform** (powered by **Helix Stax**) is an elite, zero-trust ecosystem engineered on **Talos Linux** and **Hetzner Cloud**.
 
@@ -34,7 +34,7 @@ These dynamic endpoints reflect the current operational state of the Helix infra
 ![Deploys](https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
 ![Active Alerts](https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
 
-👉 **[Detailed Platform Status](./STATUS.md)**
+👉 **[Detailed Platform Status](./docs/STATUS.md)**
 
 ```mermaid
 flowchart LR
@@ -83,6 +83,7 @@ The documentation is structured for specific stakeholders.
 - **[Iron Spider Subsystem](./docs/architecture/iron-spider.md)**: Proactive, eBPF-driven autonomous control.
 - **[Platform Engineer Guide](./docs/audiences/platform-engineer.md)**: GitOps flow and troubleshooting.
 - **[Network Admin Guide](./docs/audiences/network-admin.md)**: Ingress, Egress, and Mesh topology.
+- **[Detailed Platform Status](./docs/STATUS.md)**: Comprehensive health and observability view.
 
 ---
 
