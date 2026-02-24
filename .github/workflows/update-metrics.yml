@@ -9,9 +9,8 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - name: Update metrics
+            - name: Update uptime metric
               run: |
-                  mkdir -p .github/pages/metrics
                   cat <<EOF > .github/pages/metrics/uptime.json
                   {
                     "schemaVersion": 1,
@@ -20,7 +19,6 @@ jobs:
                     "color": "brightgreen"
                   }
                   EOF
-                  # Add more metrics update logic here as needed
 
             - uses: stefanzweifel/git-auto-commit-action@v5
               with:

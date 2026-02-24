@@ -1,18 +1,16 @@
-![Helix Platform Social Preview](./docs/assets/social-preview.png)
+# Helix Platform
 
-# Helix Platform — The Future of Autonomous, Secure Infrastructure
+**Helix Platform** — founder‑grade, GitOps‑driven platform reference architecture for multi‑cluster Kubernetes operations. Built by **Wakeem (Keem) Williams**.
 
-> **Architecture v3.3 (Security-First Edition)**  
-> **Lead Architect:** [Wakeem Williams](https://github.com/keemwilliams)  
-> **Status:** Production-Ready Reference Suite
+This repo documents the architecture, roadmap, and operational identity of Helix Platform, including the **Iron Spider** autonomous operations subsystem.
 
 ---
 
-## 🏛️ The Vision
+## 🏛️ Project Vision
 
-I am **Wakeem Williams**, and I build infrastructure that doesn't just run code—it protects it.
+![Helix Platform Social Preview](./docs/assets/social-preview.png)
 
-The **Helix Platform** is an elite, zero-trust ecosystem engineered on **Talos Linux** and **Hetzner Cloud**. It is designed to host autonomous AI agents, multi-tenant stateful applications, and high-security customer workloads. This repository is a masterclass in capital-efficient, high-performance platform engineering.
+I am **Wakeem Williams**, and I build infrastructure that doesn't just run code—it protects it. The **Helix Platform** (powered by **Helix Stax**) is an elite, zero-trust ecosystem engineered on **Talos Linux** and **Hetzner Cloud**.
 
 ---
 
@@ -25,23 +23,16 @@ The **Helix Platform** is an elite, zero-trust ecosystem engineered on **Talos L
 
 ---
 
-## 📊 Platform Metrics
+## 📊 Live Platform Metrics
 
 These dynamic endpoints reflect the current operational state of the Helix infrastructure.
 
-![Uptime](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/uptime.json)
-![Latency](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/latency.json)
-![Error Rate](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/error_rate.json)
-![ArgoCD Syncs](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/argo_syncs.json)
-![Deploys](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
-![Rollbacks](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/rollbacks.json)
-![CNPG](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/cnpg_status.json)
-![Redis](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/redis_hit_rate.json)
-![Longhorn](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/longhorn_health.json)
-![NetBird](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/netbird_peers.json)
-![Grafana](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/grafana_dashboards.json)
-![Prometheus](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/prometheus_metrics.json)
-![Alerts](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
+![Uptime](https://keemwilliams.github.io/helix-platform/metrics/uptime.json)
+![Latency](https://keemwilliams.github.io/helix-platform/metrics/latency.json)
+![Error Rate](https://keemwilliams.github.io/helix-platform/metrics/error_rate.json)
+![ArgoCD Syncs](https://keemwilliams.github.io/helix-platform/metrics/argo_syncs.json)
+![Deploys](https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
+![Active Alerts](https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
 
 👉 **[Detailed Platform Status](./STATUS.md)**
 
@@ -74,35 +65,24 @@ flowchart LR
     F --> K
 ```
 
-My architecture ensures that any traffic—whether from a User, a Developer, or a CI Runner—is strictly validated, authenticated, and logged.
-
-- **Zero-Trust mesh** via [NetBird](https://netbird.io/) for API isolation.
-- **Identity-First Ingress** via [Authentik](https://goauthentik.io/) ForwardAuth.
-- **eBPF-driven segmentation** via [Cilium](https://cilium.io/) default-deny policies.
-- **Immutable substrate** via [Talos Linux](https://www.talos.dev/).
-
 ---
 
 ## 🗺️ Navigation & Architecture Suite
 
-The documentation is structured for specific stakeholders. From high-level business value to deep networking protocols:
+The documentation is structured for specific stakeholders.
 
 ### 💼 For Stakeholders & Recruiters
 
-- **[Recruiter Overview](./docs/architecture/recruiter-overview.md)**: High-level vision and "Why it works" summary.
+- **[Recruiter Overview](./docs/audiences/recruiter-overview.md)**: High-level vision and "Why it works" summary.
 - **[Cost, Time, and Complexity](./docs/architecture/cost-time-complexity.md)**: A founder-grade technical whitepaper on efficiency and tradeoffs.
-- **[Strategic Roadmap](./ROADMAP.md)**: The future evolution of the Helix ecosystem.
+- **[Strategic Roadmap](./ROADMAP.md)**: The future evolution of the Helix ecosystem (Iron Spider vision).
 
 ### 🛠️ For Platform & Network Engineers
 
 - **[Master Architecture](./docs/architecture/master-architecture.md)**: The canonical source of truth and full platform diagram.
-- **[Network & Security Deep-Dive](./docs/architecture/network-admin-architecture.md)**: Ingress, Egress, and Mesh topology.
-- **[GitOps & Supply Chain](./docs/architecture/platform-engineer-architecture.md)**: Delivery lifecycle and security policies.
-- **[Multi-Domain Ingress Patterns](./docs/architecture/multi-domain-ingress.md)**: Handling TLS and Auth at scale.
-
-### 📊 Visual Assets
-
-- **[Diagrams Folder](./docs/architecture/diagrams/)**: Standalone high-fidelity Mermaid and SVG assets.
+- **[Iron Spider Subsystem](./docs/architecture/iron-spider.md)**: Proactive, eBPF-driven autonomous control.
+- **[Platform Engineer Guide](./docs/audiences/platform-engineer.md)**: GitOps flow and troubleshooting.
+- **[Network Admin Guide](./docs/audiences/network-admin.md)**: Ingress, Egress, and Mesh topology.
 
 ---
 
@@ -125,7 +105,7 @@ The documentation is structured for specific stakeholders. From high-level busin
 
 ---
 
-## � Repository Hygiene
+## 🛡️ Repository Hygiene
 
 This repository is a **Documentation & Reference Suite**. It contains:
 
@@ -137,4 +117,7 @@ This repository is a **Documentation & Reference Suite**. It contains:
 *Note: This repo intentionally excludes live secrets, static Terraform providers, or proprietary application source code.*
 
 ---
+Founder: **Wakeem (Keem) Williams**  
+Repo: `keemwilliams/helix-platform`  
 © 2026 Wakeem Williams. All Rights Reserved.
+筋

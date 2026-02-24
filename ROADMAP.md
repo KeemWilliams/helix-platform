@@ -1,4 +1,4 @@
-# 🛣️ Helix Platform Strategic Roadmap: The Iron Spider Vision
+# 🛣️ Helix Stax Strategic Roadmap: The Iron Spider Vision
 
 The Helix Platform is the foundation. **Iron Spider** is the intelligence. This roadmap outlines the strategic evolution from a reference architecture into a fully autonomous, predictive, and multi-cluster ecosystem.
 
@@ -22,7 +22,7 @@ The Helix Platform is the foundation. **Iron Spider** is the intelligence. This 
 
 ---
 
-## �️ Phase 2: Iron Spider Telemetry Core
+## 🕸️ Phase 2: Iron Spider Telemetry Core
 
 *Real-time visibility into the pulse of the cluster.*
 
@@ -83,3 +83,4 @@ The Helix Platform is the foundation. **Iron Spider** is the intelligence. This 
 
 ---
 © 2026 Wakeem Williams. All Rights Reserved.
+筋

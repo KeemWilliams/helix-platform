@@ -1,56 +1,59 @@
 # Platform Status
 
-This page reflects the current operational state of the Helix Platform ecosystem. Individual service health and performance metrics are sourced from the cluster observability plane (Prometheus/Grafana) and served via dynamic GitOps endpoints.
+This page reflects the current operational state of the **Helix Platform** (powered by **Helix Stax**).
 
----
+## Core Metrics
 
-## 🟢 Core Infrastructure Metrics
+- **Uptime:** 99.99%
+- **P95 Latency:** 42ms
+- **5xx Error Rate:** 0.02%
+- **ArgoCD Syncs:** 982
+- **Deploys:** 128
+- **Rollbacks:** 3
 
-![Uptime](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/uptime.json)
-![Latency](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/latency.json)
-![Error Rate](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/error_rate.json)
+## Data Plane
 
-| Metric | Current State | Target (SLO) | Status |
-| :--- | :--- | :--- | :--- |
-| **Uptime** | 99.99% | 99.9% | 🟢 Healthy |
-| **P95 Latency** | 42ms | <100ms | 🟢 Healthy |
-| **5xx Error Rate** | 0.02% | <0.1% | 🟢 Healthy |
+- **CNPG:** Healthy
+- **Redis Hit Rate:** 97%
+- **Longhorn Volumes:** Healthy
 
----
+## Zero Trust
 
-## 🚀 GitOps & Deployment Velocity
+- **NetBird Peers:** 14
 
-![ArgoCD Syncs](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/argo_syncs.json)
-![Deploys](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
-![Rollbacks](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/rollbacks.json)
+## Observability
 
-- **Total Syncs:** 982
-- **Production de-risking:** Active rollbacks are at **~2.3%**, indicating a healthy CI/CD pipeline with automated health-check gates.
+- **Grafana Dashboards:** 14
+- **Prometheus Metrics Exported:** 842
+- **Active Alerts:** 0
 
----
+## Dashboard (Mermaid)
 
-## 💾 Data Plane & Persistence
+```mermaid
+flowchart LR
+    A[Uptime 99.99%] --> B[P95 Latency 42ms]
+    B --> C[5xx Error Rate 0.02%]
+    C --> D[ArgoCD Syncs 982]
+    D --> E[Deploys 128]
+    E --> F[Rollbacks 3]
 
-![CNPG](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/cnpg_status.json)
-![Redis](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/redis_hit_rate.json)
-![Longhorn](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/longhorn_health.json)
+    subgraph Data Plane
+        G[CNPG Healthy]
+        H[Redis Hit Rate 97%]
+        I[Longhorn Healthy]
+    end
 
-- **PostgreSQL (CNPG):** Cluster is in HA state with 3 sync replicas.
-- **Cache Efficiency:** Redis hit rate maintained at **97%**.
-- **Storage Resilience:** Longhorn volumes are healthy and replicated across worker zones.
+    subgraph Zero Trust
+        J[NetBird Peers 14]
+    end
 
----
-
-## 🛡️ Zero Trust & Observability
-
-![NetBird](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/netbird_peers.json)
-![Grafana](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/grafana_dashboards.json)
-![Prometheus](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/prometheus_metrics.json)
-![Alerts](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
-
-- **Secure Peer Count:** 14 active NetBird nodes.
-- **Observability Density:** 842 total metrics exported via Prometheus across 14 specialized Grafana dashboards.
-- **Incidents:** 0 active firing alerts.
+    subgraph Observability
+        K[Grafana Dashboards 14]
+        L[Prometheus Metrics 842]
+        M[Active Alerts 0]
+    end
+```
 
 ---
 © 2026 Wakeem Williams. All Rights Reserved.
+筋
