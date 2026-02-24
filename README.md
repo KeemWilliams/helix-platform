@@ -94,7 +94,7 @@ The documentation is structured for specific stakeholders.
 3. **Phase 3: Security Weave** — NetBird, Cilium, and Authentik SSO gating.
 4. **Phase 4: GitOps Control Plane** — ArgoCD and Devtron orchestration.
 5. **Phase 5: State & Data HA** — CloudNativePG, Redis, and Longhorn storage.
-6. **Phase 6: AI-Agentic Integration** — Ollama, LangGraph, and Steel Browser egress.
+6. **Phase 6: AI-Agentic Integration** — Ollama, LangGraph, and automated inference.
 
 ---
 
