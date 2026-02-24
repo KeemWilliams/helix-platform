@@ -56,4 +56,3 @@ flowchart LR
 
 ---
 © 2026 Wakeem Williams. All Rights Reserved.
-筋

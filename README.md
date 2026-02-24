@@ -91,7 +91,7 @@ The documentation is structured for specific stakeholders.
 
 1. **Phase 1: Hardened Core** — Terraform, IAM, and KMS initialization.
 2. **Phase 2: Immutable Substrate** — Talos Linux bootstrap and cluster stabilization.
-3. **Phase 4: Security Weave** — NetBird, Cilium, and Authentik SSO gating.
+3. **Phase 3: Security Weave** — NetBird, Cilium, and Authentik SSO gating.
 4. **Phase 4: GitOps Control Plane** — ArgoCD and Devtron orchestration.
 5. **Phase 5: State & Data HA** — CloudNativePG, Redis, and Longhorn storage.
 6. **Phase 6: AI-Agentic Integration** — Ollama, LangGraph, and Steel Browser egress.
@@ -121,4 +121,3 @@ This repository is a **Documentation & Reference Suite**. It contains:
 Founder: **Wakeem (Keem) Williams**  
 Repo: `keemwilliams/helix-platform`  
 © 2026 Wakeem Williams. All Rights Reserved.
-筋
