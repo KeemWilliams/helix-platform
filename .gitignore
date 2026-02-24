@@ -45,3 +45,6 @@ task_*.md
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Google App Engine generated folder
+appengine-generated/

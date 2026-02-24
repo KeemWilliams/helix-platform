@@ -25,7 +25,7 @@ This document tracks recurring tasks required to maintain cluster health and sec
 
 | Date | Task | Result | Operator |
 | :--- | :--- | :--- | :--- |
-| 2026-02-23 | Plan v3.8 Baseline | Success | Antigravity |
+| 2026-02-23 | Plan v3.8 Baseline | Success | Wakeem Williams |
 
 ---
 **Primary Owner**: On-call Lead
