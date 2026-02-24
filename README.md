@@ -27,12 +27,12 @@ I am **Wakeem Williams**, and I build infrastructure that doesn't just run code�
 
 These dynamic endpoints reflect the current operational state of the Helix infrastructure.
 
-![Uptime](https://keemwilliams.github.io/helix-platform/metrics/uptime.json)
-![Latency](https://keemwilliams.github.io/helix-platform/metrics/latency.json)
-![Error Rate](https://keemwilliams.github.io/helix-platform/metrics/error_rate.json)
-![ArgoCD Syncs](https://keemwilliams.github.io/helix-platform/metrics/argo_syncs.json)
-![Deploys](https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
-![Active Alerts](https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
+![Uptime](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/uptime.json)
+![Latency](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/latency.json)
+![Error Rate](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/error_rate.json)
+![ArgoCD Syncs](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/argo_syncs.json)
+![Deploys](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/deploys.json)
+![Active Alerts](https://img.shields.io/endpoint?url=https://keemwilliams.github.io/helix-platform/metrics/alerts.json)
 
 👉 **[Detailed Platform Status](./docs/STATUS.md)**
 
@@ -91,7 +91,7 @@ The documentation is structured for specific stakeholders.
 
 1. **Phase 1: Hardened Core** — Terraform, IAM, and KMS initialization.
 2. **Phase 2: Immutable Substrate** — Talos Linux bootstrap and cluster stabilization.
-3. **Phase 3: Security Weave** — NetBird, Cilium, and Authentik SSO gating.
+3. **Phase 4: Security Weave** — NetBird, Cilium, and Authentik SSO gating.
 4. **Phase 4: GitOps Control Plane** — ArgoCD and Devtron orchestration.
 5. **Phase 5: State & Data HA** — CloudNativePG, Redis, and Longhorn storage.
 6. **Phase 6: AI-Agentic Integration** — Ollama, LangGraph, and Steel Browser egress.
