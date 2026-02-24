@@ -1,19 +1,77 @@
-%% Bootstrap Sequence v1.0
-%% Owner: Infra / CI Lead
+%% Bootstrap Sequence v3.0 — Rich detail with emojis
+%% Owner: @infra-owner @ci-owner
 %% Last Validated: 2026-02-23
+%% End-to-end cluster bootstrap sequence showing all platform primitives,
+%% S3 native lock lifecycle, NetBird ephemeral join, and SOPS late-stage decrypt.
+%% Validation:
+%%   terraform init -backend-config=infra/envs/prod/backend.tf
+%%   terraform plan -detailed-exitcode
+%%   netbird status  (inside CI runner)
+%%   kubectl get pods -n devtroncd | grep argocd  # expected: empty
 
 sequenceDiagram
-  participant TF as Terraform
-  participant Talos as Talos Linux
-  participant K8s as Kubernetes API
-  participant CI as CI (GitHub Actions)
-  participant Git as GitOps Repo
+  autonumber
 
-  TF->>Talos: Provision VMs & Networks
-  TF->>CI: Export Outputs (JSON)
-  CI->>Talos: Apply controlplane.yaml
-  Talos->>K8s: Bootstrap Cluster
-  CI->>K8s: Install Flux/ArgoCD
-  Git->>CI: Push Manifests
-  CI->>Git: Sign & Commit
-  Git->>K8s: Reconcile (GitOps)
+  participant TF    as 🏗️ Terraform
+  participant S3    as 🗄️ S3 State Bucket
+  participant KMS   as 🔐 KMS
+  participant Hetz  as 🖥️ Hetzner API
+  participant Talos as ⚙️ Talos Linux
+  participant K8s   as ⎈ Kubernetes API
+  participant NB    as 🕸️ NetBird Mesh
+  participant CI    as 🤖 CI Runner
+  participant SOPS  as 🔑 SOPS / KMS
+  participant Helm  as 📦 Helm
+  participant ArgoCD as 🔄 ArgoCD
+
+  rect rgb(15, 23, 42)
+    Note over TF,S3: ☁️ Phase 1 — Terraform Bootstrap
+    TF  ->> S3   : init backend (use_lockfile=true, no DynamoDB)
+    S3  -->> TF  : ✅ backend ready
+    TF  ->> KMS  : verify kms:Decrypt access for state SSE
+    KMS -->> TF  : ✅ key accessible
+    TF  ->> S3   : PutObject terraform.tfstate.tflock — acquire lock
+    S3  -->> TF  : ✅ lock granted
+    TF  ->> Hetz : provision VMs, networks, floating IPs
+    Hetz -->> TF : ✅ resources created
+    TF  ->> S3   : DeleteObject *.tflock — release lock
+    S3  -->> TF  : ✅ lock released
+    TF  ->> CI   : write outputs.json (egress IPs, kubeconfig path)
+  end
+
+  rect rgb(5, 46, 22)
+    Note over CI,NB: 🕸️ Phase 2 — NetBird Mesh & Secure Access
+    CI  ->> NB   : netbird up --setup-key $EPHEMERAL_KEY
+    NB  -->> CI  : ✅ peer registered (ephemeral — auto-deregisters in 10m)
+    Note right of NB: No public K8s API exposure.\nAll admin access goes through NetBird.
+  end
+
+  rect rgb(12, 74, 110)
+    Note over CI,K8s: ⎈ Phase 3 — Cluster Bootstrap
+    CI  ->> Talos: apply controlplane.yaml
+    Talos -->> K8s: bootstrap etcd + API server
+    K8s  -->> CI  : ✅ API ready
+    CI  ->> K8s  : install Cilium CNI
+    CI  ->> K8s  : install cert-manager + ClusterIssuer
+    CI  ->> K8s  : install Traefik (IngressRoute CRDs enabled)
+    CI  ->> K8s  : install Kyverno (Audit mode first)
+    CI  ->> K8s  : install ArgoCD external controller
+  end
+
+  rect rgb(59, 7, 100)
+    Note over CI,Helm: 🔐 Phase 4 — SOPS Decrypt + Platform Install
+    CI   ->> SOPS : sops --decrypt secrets.enc.yaml (KMS via OIDC role)
+    SOPS -->> CI  : ✅ secrets.yaml (plaintext — ephemeral)
+    CI   ->> Helm : helm upgrade devtron\n  --set argo-cd.enabled=false\n  -f values.devtron.custom.yaml\n  -f secrets.yaml
+    Helm -->> K8s : deploy Devtron pods (no ArgoCD pods expected)
+    CI   ->> CI   : rm secrets.yaml  # 🔥 delete immediately
+    Note right of CI: SOPS plaintext never persists\nbeyond helm upgrade call.
+  end
+
+  rect rgb(63, 7, 20)
+    Note over ArgoCD,K8s: 🔄 Phase 5 — GitOps Handover
+    ArgoCD ->> K8s  : apply gitops/platform/** (all CRDs, apps)
+    K8s    -->> ArgoCD: ✅ resources reconciled
+    ArgoCD ->> K8s  : Kyverno validationFailureAction → Enforce
+    Note right of ArgoCD: After all production images\nare Cosign-signed.
+  end

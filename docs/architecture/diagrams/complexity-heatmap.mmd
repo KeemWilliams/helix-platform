@@ -1,0 +1,37 @@
+%% Complexity Heatmap v1.1
+%% 3x3 Operational vs Architectural Complexity Matrix
+%% Owner: Wakeem Williams
+
+graph TD
+    subgraph "The Complexity Heatmap"
+        direction TB
+
+        subgraph HIGH_ARCH ["High Architectural Complexity"]
+            direction LR
+            Authentik{"Authentik (High/High)"}:::high
+            Cilium{"Cilium (High/Medium)"}:::high
+            Envoy{"Envoy Egress (High/High)"}:::high
+        end
+
+        subgraph MED_ARCH ["Medium Architectural Complexity"]
+            direction LR
+            ArgoCD("ArgoCD (Med/Med)"):::med
+            Traefik("Traefik v3 (Med/Med)"):::med
+            CNPG("CNPG (Med/Low)"):::med
+            Kyverno("Kyverno (Med/Low)"):::med
+        end
+
+        subgraph LOW_ARCH ["Low Architectural Complexity"]
+            direction LR
+            NetBird("NetBird (Low/Low)"):::low
+            Redis("Redis (Low/Low)"):::low
+        end
+    end
+
+    %% Legend & Styles
+    classDef high fill:#450a0a,stroke:#f87171,stroke-width:2px,color:#fecdd3;
+    classDef med  fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#c7d2fe;
+    classDef low  fill:#064e3b,stroke:#34d399,stroke-width:2px,color:#d1fae5;
+
+    %% Axis Labels (Conceptual)
+    Operational_Complexity --> Architectural_Complexity

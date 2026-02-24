@@ -1,26 +1,71 @@
-%% Failure Modes & Recovery v1.0
-%% Owner: SRE / On-call Lead
+%% Failure Modes & Recovery v3.2 — Elite Version
+%% Incident Response & Mitigation Mapping
+%% Owner: @sre @on-call-lead
 %% Last Validated: 2026-02-23
+%%{init:{"theme":"base","themeVariables":{"primaryColor":"#0f172a","primaryTextColor":"#f1f5f9","primaryBorderColor":"#6366f1","lineColor":"#64748b","secondaryColor":"#1e293b","background":"#020617","mainBkg":"#1e293b","clusterBkg":"#0f172a","clusterBorder":"#334155","titleColor":"#f8fafc","edgeLabelBackground":"#0f172a","fontFamily":"Inter, system-ui, sans-serif"}}}%%
 
 graph TD
-  subgraph Incident ["Trigger Event"]
-    FAIL1[Node Loss]
-    FAIL2[DB Corruption]
-    FAIL3[Egress Blocked]
+  classDef fail    fill:#3f0714,stroke:#f43f5e,stroke-width:2px,color:#fecdd3;
+  classDef action  fill:#1c1917,stroke:#f59e0b,stroke-width:2px,color:#fde68a;
+  classDef ok      fill:#052e16,stroke:#4ade80,stroke-width:2px,color:#bbf7d0;
+  classDef ref     fill:#1e1b4b,stroke:#818cf8,stroke-width:1px,color:#c7d2fe;
+
+  %% ── FAILURE VECTORS ──────────────────────────────────────────────────
+  subgraph TRIGGERS ["🚨 Failure Vectors (Triggers)"]
+    direction LR
+    F1["Node Loss\npod eviction / OOM kill"]:::fail
+    F2["DB Corruption\nwrite failure / split-brain"]:::fail
+    F3["Egress Blocked\nNAT / proxy failure"]:::fail
+    F4["TF Lock Frozen\nmissing s3:DeleteObject\nCI pipeline stuck"]:::fail
+    F5["ArgoCD Split-Brain\nConflicting controllers\n(Embedded vs External)"]:::fail
+    F6["Connection Pool OOM\nNo PgBouncer — direct conn\nexhaust Postgres max_connections"]:::fail
   end
 
-  subgraph Recovery_Path ["Automated & Manual Actions"]
-    FAIL1 -->|Auto| AutoHealing[Talos Self-Heal / K8s Reschedule]
-    FAIL2 -->|Manual| PITR[Postgres Restore from S3]
-    FAIL3 -->|Manual| ProxyReset[Rotate Egress IPs / Fix Policy]
+  %% ── MITIGATION STRATEGIES ───────────────────────────────────────────
+  subgraph RECOVERY ["🛠️ Mitigation & Recovery Actions"]
+    A1["Auto-Heal\nTalos reboots node\nK8s reschedules pods"]:::action
+    A2["PITR Restore\nkubectl cnpg backup\nrestore from Barman"]:::action
+    A3["Rotate Egress IPs\nupdate floating IP\nfix CiliumNetworkPolicy"]:::action
+    A4["Fix IAM Policy\nadd s3:DeleteObject to CI\nfor tflock object ARN"]:::action
+    A5["Disable Embedded ArgoCD\nargo-cd.enabled: false\nin devtron values"]:::action
+    A6["Deploy CNPG Pooler\nApply pgBouncer manifest\ngitops/platform/cnpg/"]:::action
   end
 
-  subgraph Outcome ["Healthy State"]
-    AutoHealing --> Ready[Service Restored]
-    PITR --> Ready
-    ProxyReset --> Ready
+  %% ── DOCUMENTATION REFS ──────────────────────────────────────────────
+  subgraph REFS ["📄 Documentation / Repo Refs"]
+    R4["infra/ci-policy/"]:::ref
+    R5["gitops/platform/devtron/"]:::ref
+    R6["gitops/platform/cnpg/"]:::ref
   end
 
-  %% Triage Command:
-  %% kubectl get pods -A --field-selector=status.phase!=Running
-  %% See: docs/runbook.md
+  subgraph OUTCOME ["✅ Healthy Outcome"]
+    OK[["Service Restored\nAll alerts green"]]:::ok
+  end
+
+  %% ── FLOWS ─────────────────────────────────────────────────────────────
+  F1 -->|"Automated"| A1
+  F2 -->|"Manual"| A2
+  F3 -->|"Manual"| A3
+  F4 -->|"Manual + redeploy"| A4
+  F5 -->|"Immediate"| A5
+  F6 -->|"Apply manifest"| A6
+
+  A4 -.->|"Ref"| R4
+  A5 -.->|"Ref"| R5
+  A6 -.->|"Ref"| R6
+
+  A1 --> OK
+  A2 --> OK
+  A3 --> OK
+  A4 --> OK
+  A5 --> OK
+  A6 --> OK
+
+  %% ── LEGEND ────────────────────────────────────────────────────────────
+  subgraph LEGEND ["📊 Legend"]
+    direction LR
+    L1["Failure Event"]:::fail
+    L2["Recovery Action"]:::action
+    L3["Reference Link"]:::ref
+    L4[["Safe State"]]:::ok
+  end

@@ -1,0 +1,123 @@
+%% Platform Component Relationships — Class Diagram
+%% Owner: @platform-owner
+%% Version: 1.1 — fixed square brackets in attributes, special chars
+%% Last validated: 2026-02-23
+
+classDiagram
+  direction LR
+
+  class TraefikIngress {
+    +entryPoints: websecure
+    +tlsSecretName: devtron-tls-cert
+    +middleware: AuthentikForwardAuth
+    +allowCrossNamespace: true
+    +route(host) Service
+  }
+
+  class AuthentikForwardAuth {
+    +outpostPath: outpost.goauthentik.io/auth/traefik
+    +trustForwardHeader: true
+    +authResponseHeaders: username, groups
+    +sessionCookieDomain: .example.com
+    +check(request) bool
+    +redirect(url) HTTP302
+  }
+
+  class ArgoCD {
+    +version: 2.10plus
+    +namespace: argocd
+    +repoPollInterval: 3m
+    +sync(app) SyncResult
+    +rollback(app, revision) RollbackResult
+  }
+
+  class Devtron {
+    +externalArgoCD: true
+    +embeddedArgoCD: false
+    +externalPostgres: true
+    +externalRedis: true
+    +externalNATS: true
+    +observe(app) AppStatus
+    +triggerSync(app) void
+  }
+
+  class KyvernoClusterPolicy {
+    +name: verify-image-provenance
+    +validationFailureAction: Enforce
+    +mutateDigest: true
+    +issuer: token.actions.githubusercontent.com
+    +verify(pod) AdmissionResponse
+  }
+
+  class CNPGCluster {
+    +instances: 3
+    +storage: gp3
+    +walArchive: BarmanObjectStore
+    +s3Bucket: platform-backups-prod
+    +backup() BackupResult
+    +restore(targetTime) void
+  }
+
+  class CNPGPooler {
+    +poolMode: transaction
+    +maxClientConn: 1000
+    +defaultPoolSize: 20
+    +replicas: 2
+    +pdb: minAvailable 1
+    +connect(user, db) PgConnection
+  }
+
+  class TerraformBackend {
+    +bucket: helix-terraform-state-bucket
+    +key: prod/terraform.tfstate
+    +useLockfile: true
+    +dynamodbTable: REMOVED
+    +lock() LockFile
+    +unlock() void
+  }
+
+  class CIIAMRole {
+    +trustPolicy: GitHubOIDC
+    +s3Actions: GetObject PutObject
+    +s3LockActions: PutObject GetObject DeleteObject
+    +kmsActions: Decrypt GenerateDataKey
+    +assumeRole(oidcToken) Credentials
+  }
+
+  class NetBirdPeer {
+    +ephemeral: true
+    +autoAssignGroup: ci-runners
+    +deregisterAfterMinutes: 10
+    +join(setupKey) PeerStatus
+    +status() NetworkStatus
+  }
+
+  class AuthentikOIDC {
+    +clientType: Confidential
+    +redirectURI: api/dex/callback
+    +accessCodeValidity: 10m
+    +scimEnabled: true
+    +authorize(code) TokenSet
+    +provision(user) SCIMRecord
+  }
+
+  class PrometheusRules {
+    +ArgoAppSyncFailed: phase != Succeeded for 1m
+    +ArgoAppOutOfSync: OutOfSync for 15m
+    +ArgoAppHealthDegraded: not Healthy for 5m
+    +evaluate(metric) Alert
+  }
+
+  %% Relationships
+  TraefikIngress       --> AuthentikForwardAuth : delegates auth to
+  TraefikIngress       --> Devtron              : routes dashboard to
+  AuthentikForwardAuth --> AuthentikOIDC        : backed by
+  Devtron              --> ArgoCD               : triggers and observes
+  ArgoCD               --> KyvernoClusterPolicy : policies enforced on sync
+  KyvernoClusterPolicy --> CNPGPooler           : admits pooler pods
+  CNPGPooler           --> CNPGCluster          : pools connections to
+  TerraformBackend     --> CIIAMRole            : locked by
+  CIIAMRole            --> TerraformBackend     : reads and writes state
+  NetBirdPeer          --> ArgoCD               : secure API access via mesh
+  PrometheusRules      --> ArgoCD               : scrapes metrics from
+  Devtron              ..> AuthentikOIDC        : SSO via OIDC

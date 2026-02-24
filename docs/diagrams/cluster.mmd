@@ -1,32 +1,75 @@
-%% Cluster Architecture v1.0
-%% Owner: Infrastructure Lead
+%% Cluster Architecture v3.2 — Elite Version
+%% Physical Node & Resource Mapping
+%% Owner: @infra-owner
 %% Last Validated: 2026-02-23
 
 graph TD
-  subgraph CP_Pool ["Control Plane Pool (3 Nodes)"]
-    CP1[cp-01]
-    CP2[cp-02]
-    CP3[cp-03]
+  classDef pool  fill:#1c1917,stroke:#f97316,stroke-width:2px,color:#fed7aa;
+  classDef svc   fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#c7d2fe;
+  classDef store fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#f3e8ff;
+  classDef sec   fill:#052e16,stroke:#4ade80,stroke-width:2px,color:#bbf7d0;
+
+  %% ── NODE POOLS ────────────────────────────────────────────────────────
+  subgraph CP ["⚙️ Control Plane Pool (3 Nodes)"]
+    CP1["cp-01"]:::pool
+    CP2["cp-02"]:::pool
+    CP3["cp-03"]:::pool
   end
 
-  subgraph Worker_Standard ["General Workload Pool"]
-    W1[worker-01]
-    W2[worker-02]
+  subgraph WS ["💻 General Workload Pool"]
+    W1["worker-01"]:::pool
+    W2["worker-02"]:::pool
   end
 
-  subgraph Worker_High ["High-Compute / GPU Pool"]
-    WH1[worker-high-01]
-    WH2[worker-high-02]
+  subgraph WH ["🧠 High-Compute / Inference Pool"]
+    WH1["worker-high-01\nGPU-capable"]:::pool
+    WH2["worker-high-02\nGPU-capable"]:::pool
   end
 
-  subgraph Storage_Tier ["Stateful Storage"]
-    CP_Pool --- ETCD[(etcd)]
-    Worker_Standard --- LH[(Longhorn HA)]
-    Worker_High --- LH
+  subgraph DB ["💾 Database Pool (gp3 NVMe)"]
+    direction LR
+    DB1["db-01"]:::pool
+    DB2["db-02"]:::pool
+    DB3["db-03"]:::pool
   end
 
-  %% Node Labels:
-  %% pool=worker-standard, pool=worker-high
-  %% Verification Commands:
-  %% kubectl get nodes -L pool
-  %% kubectl get sc
+  %% ── SERVICES & STORAGE ────────────────────────────────────────────────
+  subgraph CONN ["🔌 Connection Pooling Layer"]
+    Pooler(["CNPG Pooler\nPgBouncer transaction mode\nmax_client_conn 1000"]):::svc
+  end
+
+  subgraph STORAGE ["💾 Stateful Storage Tier"]
+    ETCD[("etcd\n3x raft replicas")]:::store
+    LH[("Longhorn HA\ngp3 StorageClass")]:::store
+    CNPG[("CloudNativePG\n3 replicas synchronous\nBarman WAL to S3")]:::store
+  end
+
+  subgraph NET ["🛂 Network and Policy Layer"]
+    Cilium{"Cilium CNI\neBPF L3/L4/L7"}:::sec
+    Kyverno{"Kyverno\nverifyImages admission"}:::sec
+  end
+
+  %% ── RELATIONSHIPS ─────────────────────────────────────────────────────
+  CP  --- ETCD
+  WS  --- LH
+  WH  --- LH
+  DB  --- CNPG
+
+  WS  -->|"app db connections"| Pooler
+  WH  -->|"app db connections"| Pooler
+  Pooler -->|"pooled connections"| CNPG
+
+  Cilium  -.->|"default-deny"| WS
+  Cilium  -.->|"default-deny"| WH
+  Cilium  -.->|"default-deny"| DB
+  Kyverno -.->|"image admission"| WS
+  Kyverno -.->|"image admission"| WH
+
+  %% ── LEGEND ────────────────────────────────────────────────────────────
+  subgraph LEGEND ["📊 Legend"]
+    direction LR
+    L1["Physical Node"]:::pool
+    L2(["Service / Logic"]):::svc
+    L3[("Storage / DB")]:::store
+    L4{"Policy / Security"}:::sec
+  end

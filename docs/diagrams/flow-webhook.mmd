@@ -1,83 +1,76 @@
+%% Webhook Flow v3.1 — Fixed shapes, quoted labels
 %% Owner: platform-team@example.com
-%% Version: 1.0
 %% Last validated: 2026-02-23
-%% Summary: Internal flows for webhook -> orchestrator -> AI -> DB and scraper egress patterns.
-%% Verification:
-%% talosctl --talosconfig ./talosconfig kubeconfig . && export KUBECONFIG=./kubeconfig && kubectl get nodes --show-labels
-%% kubectl -n ingress get svc traefik
-%% terraform output egress_ips
-%% kubectl -n monitoring get pods,servicemonitors,prometheusrules
-%%{init: {"theme":"base","themeVariables":{"primaryColor":"#1f2937","secondaryColor":"#4f46e5","tertiaryColor":"#10b981","edgeLabelBackground":"#111827","fontFamily":"Inter, Arial, sans-serif"},"flowchart":{"curve":"basis"},"arrowMarkerAbsolute":true}}%%
+%%{init:{"theme":"base","themeVariables":{"primaryColor":"#0f172a","primaryTextColor":"#f1f5f9","primaryBorderColor":"#6366f1","lineColor":"#64748b","secondaryColor":"#1e293b","background":"#020617","mainBkg":"#1e293b","clusterBkg":"#0f172a","clusterBorder":"#334155","titleColor":"#f8fafc","edgeLabelBackground":"#0f172a","fontFamily":"Inter, system-ui, sans-serif","fontSize":"13px"}}}%%
 
 flowchart LR
-  %% class defs
-  classDef ext fill:#f9f9f9,stroke:#666,stroke-width:1px,color:#333;
-  classDef infra fill:#e0f7fa,stroke:#006064,stroke-width:1px,color:#000;
-  classDef apps fill:#e8eaf6,stroke:#283593,stroke-width:1px,color:#000;
-  classDef db fill:#fbe9e7,stroke:#bf360c,stroke-width:1px,color:#000;
-  classDef sec fill:#e8f5e9,stroke:#2e7d32,stroke-width:1px,color:#000;
+  classDef ext   fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1,font-style:italic;
+  classDef infra fill:#0c4a6e,stroke:#0ea5e9,stroke-width:2px,color:#e0f2fe;
+  classDef sec   fill:#052e16,stroke:#4ade80,stroke-width:2px,color:#bbf7d0;
+  classDef apps  fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#c7d2fe;
+  classDef db    fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#f3e8ff;
+  classDef obs   fill:#1c1917,stroke:#fb923c,stroke-width:1.5px,color:#fed7aa;
 
-  subgraph External ["External"]
+  subgraph EXT ["External"]
     direction TB
-    User((User)):::ext
-    PartnerAPI((Partner API)):::ext
+    User(("User")):::ext
+    PartnerAPI(("Partner API")):::ext
   end
 
-  subgraph Infra ["Cloud / Egress"]
-    direction TB
-    LB([Load Balancer]):::infra
-    EgressProxy([Egress Proxy / Envoy]):::infra
-    NAT([NAT / Stable Egress IPs]):::infra
+  subgraph EDGE ["Edge / Cloud"]
+    LB(["Hetzner LB"]):::infra
+    EgressProxy(["Envoy Egress Proxy"]):::infra
+    NAT(["NAT / Stable Egress IPs"]):::infra
   end
 
-  subgraph Cluster ["Talos Cluster"]
-    direction TB
-    Traefik([Traefik Ingress]):::infra
-    Webhook([Webhook Receiver\n(validates, enqueues)]):::apps
-    Queue([NATS / RabbitMQ]):::apps
-    n8n([n8n Orchestrator]):::apps
-    LangGraph([LangGraph Orchestrator]):::apps
-    Ollama([Ollama Inference]):::apps
-    PgBouncer([PgBouncer Pooler]):::db
-    Postgres[(Postgres HA)]:::db
-    Redis[(Redis Cache)]:::db
-    Steel([Steel Browser Farm\n(scraper) - egress only]):::apps
-    CallbackWorker([Callback Worker]):::apps
+  subgraph AUTH ["Auth Gate"]
+    Traefik(["Traefik Ingress v3"]):::infra
+    Authentik{"Authentik OIDC\nForwardAuth outpost"}:::sec
   end
 
-  %% flows: user -> ingress -> webhook -> queue -> orchestrator -> db / inference -> callback
-  User -->|HTTPS| LB --> Traefik -->|HTTP| Webhook
-  Webhook -.->|async event (idempotent)| Queue
-  Queue -->|job| n8n
-  n8n -->|invoke| LangGraph
-  LangGraph -->|inference request| Ollama
-  LangGraph -->|cache| Redis
-  LangGraph -->|db write via| PgBouncer --> Postgres
-  n8n -->|publish completion| Queue
-  Queue -->|callback job| CallbackWorker
-  CallbackWorker -->|HTTP callback (idempotent)| User
-
-  %% scraper flow: scheduler -> steel -> egress -> queue -> ai -> db
-  Steel -->|egress via proxy| EgressProxy --> NAT
-  Steel -->|publish parsed data| Queue
-  Queue -->|job| LangGraph
-  LangGraph -->|inference| Ollama
-  LangGraph -->|store| PgBouncer --> Postgres
-
-  %% external API calls from orchestrator or workers
-  n8n -->|external API calls via egress| EgressProxy
-  CallbackWorker -->|external callback via egress| EgressProxy
-
-  %% observability & control
-  Queue -->|metrics| Prometheus([Prometheus]):::apps
-  Prometheus -->|alerts| AlertManager([Alertmanager]):::apps
-  AlertManager -->|trigger| Remediate([Remediation service]):::sec
-  Remediate -->|open rollback PR| Devtron([Devtron / ArgoCD]):::apps
-
-  %% legend
-  subgraph Legend ["Edge semantics"]
-    direction TB
-    S1[--> sync request/response (HTTP/gRPC)]
-    S2[-.-> async / event (pub/sub, webhook)]
-    S3[==> critical control path]
+  subgraph CLUSTER ["Talos Cluster"]
+    Webhook("Webhook Receiver\nHMAC validated"):::apps
+    Queue[("NATS Queue\nidempotent events")]:::db
+    n8n("n8n Orchestrator"):::apps
+    LangGraph("LangGraph"):::apps
+    Ollama("Ollama LLM"):::apps
+    CNPGPooler(["CNPG Pooler\nPgBouncer"]):::db
+    Postgres[("Postgres HA")]:::db
+    Redis[("Redis Cache")]:::db
+    Steel("Steel Browser\negress only"):::apps
+    Callback("Callback Worker"):::apps
   end
+
+  subgraph OPS ["Ops and GitOps"]
+    Prometheus("Prometheus"):::obs
+    AlertManager("Alertmanager"):::obs
+    Remediate("Remediation"):::obs
+    ArgoCD("ArgoCD\nexternal controller"):::apps
+  end
+
+  User -->|"HTTPS"| LB --> Traefik
+  Traefik ==>|"ForwardAuth check"| Authentik
+  Authentik -.->|"302 if unauthenticated"| User
+  Authentik -.->|"authed"| Webhook
+
+  Webhook -.->|"async enqueue\nidempotent key"| Queue
+  Queue   -->|"job"| n8n
+  n8n     -->|"invoke"| LangGraph
+  LangGraph -->|"prompt"| Ollama
+  Ollama  ---->|"completion"| LangGraph
+  LangGraph -->|"cache"| Redis
+  LangGraph -->|"write"| CNPGPooler --> Postgres
+  n8n     -.->|"publish done"| Queue
+  Queue   -->|"callback job"| Callback
+  Callback -->|"HTTP callback"| User
+
+  Steel -->|"egress via"| EgressProxy --> NAT
+  Steel -.->|"parsed data"| Queue
+  n8n   -->|"external API"| EgressProxy
+  Callback -->|"external callback"| EgressProxy
+  NAT   -->|"stable IP"| PartnerAPI
+
+  Queue        -->|"metrics"| Prometheus
+  Prometheus   -->|"alert"| AlertManager
+  AlertManager -->|"trigger"| Remediate
+  Remediate    -.->|"rollback PR"| ArgoCD

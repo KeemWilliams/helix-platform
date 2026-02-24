@@ -1,0 +1,6 @@
+{
+    "schemaVersion": 1,
+    "label": "p95 latency",
+    "message": "42ms",
+    "color": "blue"
+}

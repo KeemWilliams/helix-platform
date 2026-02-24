@@ -1,27 +1,41 @@
-%% Overview Diagram v1.0
+%% Overview Diagram v3.1 — Fixed shapes and quoted labels
 %% Owner: Platform Architects
 %% Last Validated: 2026-02-23
+%%{init:{"theme":"base","themeVariables":{"primaryColor":"#0f172a","primaryTextColor":"#f1f5f9","primaryBorderColor":"#6366f1","lineColor":"#64748b","secondaryColor":"#1e293b","background":"#020617","mainBkg":"#1e293b","clusterBkg":"#0f172a","clusterBorder":"#334155","titleColor":"#f8fafc","edgeLabelBackground":"#0f172a","fontFamily":"Inter, system-ui, sans-serif"}}}%%
 
 graph TB
-  subgraph Public ["Public Tier"]
-    User((User)) -->|HTTPS/WAF| CDN[Cloudflare CDN]
-    CDN -->|Load Balance| AppLB[Hetzner LB]
+  classDef ext   fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1;
+  classDef infra fill:#0c4a6e,stroke:#0ea5e9,stroke-width:2px,color:#e0f2fe;
+  classDef sec   fill:#052e16,stroke:#4ade80,stroke-width:2px,color:#bbf7d0;
+  classDef app   fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#c7d2fe;
+  classDef db    fill:#3b0764,stroke:#c084fc,stroke-width:2px,color:#f3e8ff;
+
+  subgraph PUBLIC ["Public Tier"]
+    User(("User")):::ext      -->|"HTTPS"| CDN(["Cloudflare CDN"]):::infra
+    CDN                        -->|"balance"| AppLB(["Hetzner LB"]):::infra
   end
 
-  subgraph Cluster ["Platform Tier"]
-    AppLB --> Ingress[Cilium Ingress]
-    Ingress --> Webhook[Webhook Receiver]
-    Webhook --> NATS[NATS Message Broker]
-    NATS --> LangGraph[LangGraph Orchestrator]
-    LangGraph --> AI[Inference Engine]
-    LangGraph --> DB[Postgres HA]
+  subgraph CLUSTER ["Platform Tier"]
+    AppLB    --> Traefik(["Traefik Ingress"]):::infra
+    Traefik  ==>|"ForwardAuth"| Authentik{"Authentik OIDC"}:::sec
+    Authentik -.->|"authed"| Webhook("Webhook"):::app
+    Authentik -.->|"authed"| Devtron("Devtron"):::app
+    Webhook  --> NATS[("NATS")]:::db
+    NATS     --> LangGraph("LangGraph"):::app
+    LangGraph --> AI("Ollama LLM"):::app
+    LangGraph --> Pooler(["CNPG Pooler"]):::db
+    Pooler   --> DBn[("Postgres HA")]:::db
   end
 
-  subgraph Management ["Control Plane"]
-    GitOps[Devtron / ArgoCD] -.->|reconcile| Cluster
-    Vault[HashiCorp Vault] -.->|secrets| Cluster
+  subgraph CONTROL ["Control Plane"]
+    ArgoCD("ArgoCD\nexternal"):::app -.->|"reconcile"| CLUSTER
+    Devtron -.->|"observe"| ArgoCD
+    SOPS[/"SOPS KMS\nlate-stage"/]:::infra -.->|"secrets"| CLUSTER
   end
 
-  %% Verification Commands:
-  %% kubectl get applications -n argocd
-  %% kubectl get nodes -o wide
+  subgraph OBSERVE ["Observability"]
+    Prom("Prometheus"):::app --> Graf("Grafana"):::app
+    Prom -->|"alert"| AM("Alertmanager"):::app
+  end
+
+  CLUSTER --> OBSERVE

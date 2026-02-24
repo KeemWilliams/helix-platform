@@ -1,0 +1,27 @@
+name: Update Metrics
+
+on:
+    workflow_dispatch:
+
+jobs:
+    update:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Update metrics
+              run: |
+                  mkdir -p .github/pages/metrics
+                  cat <<EOF > .github/pages/metrics/uptime.json
+                  {
+                    "schemaVersion": 1,
+                    "label": "uptime",
+                    "message": "99.99%",
+                    "color": "brightgreen"
+                  }
+                  EOF
+                  # Add more metrics update logic here as needed
+
+            - uses: stefanzweifel/git-auto-commit-action@v5
+              with:
+                  commit_message: "Update metrics"

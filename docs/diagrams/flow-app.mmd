@@ -1,20 +1,62 @@
-%% Application Logic Flow v1.0
-%% Owner: AI / Platform Lead
+%% Application Logic Flow v3.0 — Kyverno admission + CNPG Pooler detail
+%% Owner: @ai-lead @platform-owner
 %% Last Validated: 2026-02-23
+%% Shows: Kyverno verifyImages at pod startup, full task execution,
+%%         CNPG Pooler as explicit hop before Postgres.
+%% Validation:
+%%   kubectl get policyreport -A
+%%   cosign verify --certificate-identity <ref> ghcr.io/helix-platform/langgraph:latest
 
 sequenceDiagram
-  participant Web as Webhook Receiver
-  participant Q as NATS Queue
-  participant LG as LangGraph
-  participant OL as Ollama (Local LLM)
-  participant ST as Steel Browser
-  participant DB as Postgres (PgBouncer)
+  autonumber
 
-  Web->>Q: Enqueue (HMAC Validated)
-  Q->>LG: Process Task
-  LG->>OL: Prompt / Inference
-  OL-->>LG: Completion
-  LG->>ST: Scrape Context (if needed)
-  ST-->>LG: Page Content
-  LG->>DB: Persist Results
-  LG->>Q: Acknowledge (Done)
+  participant K  as 🛂 Kyverno Admission
+  participant W  as 🪝 Webhook Receiver
+  participant Q  as 📨 NATS Queue
+  participant LG as 🧠 LangGraph
+  participant OL as 🤖 Ollama LLM
+  participant ST as 🕷️ Steel Browser
+  participant PB as 🐘 CNPG Pooler
+  participant DB as 🗄️ Postgres HA
+
+  rect rgb(5, 46, 22)
+    Note over K,DB: 🛂 Pod Startup — Kyverno verifyImages (keyless Cosign)
+    K ->> W  : verify ghcr.io/helix-platform/webhook — mutateDigest→SHA256
+    K ->> LG : verify ghcr.io/helix-platform/langgraph — mutateDigest→SHA256
+    K ->> OL : verify ghcr.io/helix-platform/ollama — mutateDigest→SHA256
+    Note right of K: Unsigned images → rejected\nDigest pinned → tag-shift prevented
+  end
+
+  rect rgb(15, 23, 42)
+    Note over W,Q: 📨 Ingest Phase
+    W  ->> Q  : enqueue(payload, idempotency_key)
+    Q -->> W  : ack
+  end
+
+  rect rgb(30, 27, 75)
+    Note over LG,OL: 🧠 Inference Phase
+    Q  ->> LG : process_task(job_id)
+    LG ->> OL : prompt(context, instructions)
+    OL -->> LG: completion(tokens)
+  end
+
+  rect rgb(12, 74, 110)
+    Note over LG,ST: 🕷️ Scrape Phase (conditional)
+    LG ->> ST : scrape(url, selector)
+    ST -->> LG: page_content(html, metadata)
+  end
+
+  rect rgb(59, 7, 100)
+    Note over LG,DB: 💾 Persist Phase — via CNPG Pooler
+    LG ->> PB : INSERT results (transaction pool)
+    PB ->> DB : pooled backend connection
+    DB -->> PB: rows_inserted
+    PB -->> LG: ack
+    Note right of PB: max 1000 frontend connections\n20 backend Postgres connections\nOOM prevention
+  end
+
+  rect rgb(5, 46, 22)
+    Note over Q,W: ✅ Completion
+    LG ->> Q  : ack(job_id, status=done)
+    Q -->> W  : notify done
+  end

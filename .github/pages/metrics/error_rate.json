@@ -1,0 +1,6 @@
+{
+    "schemaVersion": 1,
+    "label": "5xx errors",
+    "message": "0.02%",
+    "color": "brightgreen"
+}

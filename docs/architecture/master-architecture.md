@@ -1,13 +1,30 @@
-%% Helix Platform Architecture v3.3 — Elite Version
-%% Professional Architectural View (Security-First)
-%% Owner: platform-team@example.com
-%% Last Validated: 2026-02-23
+# Master Architecture — Devtron Platform on Talos
 
-%%{init:{"theme":"base","themeVariables":{"primaryColor":"#0f172a","primaryTextColor":"#f1f5f9","primaryBorderColor":"#6366f1","lineColor":"#64748b","secondaryColor":"#1e293b","tertiaryColor":"#0ea5e9","background":"#020617","mainBkg":"#1e293b","nodeBorder":"#6366f1","clusterBkg":"#0f172a","clusterBorder":"#334155","titleColor":"#f8fafc","edgeLabelBackground":"#1e293b","fontFamily":"Inter, system-ui, sans-serif","fontSize":"13px"}}}%%
+**Owner:** platform-team  
+**Last validated:** 2026-02-23  
 
+This document is the **canonical architecture** for the platform: ingress, egress, zero‑trust, GitOps, CI/CD, secrets, data, observability, and Devtron/ArgoCD boundaries. All other docs (recruiter, network admin, platform engineer, ingress) are derived from this.
+
+---
+
+## High-level goals
+
+- Multi‑tenant, production‑grade Kubernetes on Talos.
+- GitOps‑driven delivery via ArgoCD, surfaced through Devtron.
+- Zero‑trust networking with NetBird and Cilium default‑deny.
+- Multi‑domain ingress with Traefik + cert‑manager + Authentik.
+- Strong supply chain: SBOM, Trivy, cosign, Kyverno verifyImages.
+- HA data plane: CNPG, Redis, Longhorn.
+- Clear Terraform vs GitOps vs Devtron ownership.
+
+---
+
+## Platform architecture (full diagram)
+
+```mermaid
 flowchart LR
 
-  %% ── CLASS DEFINITIONS ──────────────────────────────────────────────────
+  %% CLASS DEFINITIONS
   classDef ext       fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1,font-style:italic;
   classDef infra     fill:#0c4a6e,stroke:#0ea5e9,stroke-width:2px,color:#e0f2fe;
   classDef nodes     fill:#451a03,stroke:#f97316,stroke-width:1.5px,color:#fed7aa;
@@ -18,12 +35,13 @@ flowchart LR
   classDef obs       fill:#0c0a09,stroke:#fb923c,stroke-width:1.5px,color:#fed7aa;
   classDef remediate fill:#3f0714,stroke:#f43f5e,stroke-width:2px,color:#fecdd3;
 
-  %% ── EXTERNAL & SOURCE ──────────────────────────────────────────────────
+  %% EXTERNAL & SOURCE
   subgraph EXT ["🌎 External Environment"]
     direction TB
     U(("User")):::ext
     Dev(("Developer")):::ext
     Partner(("Partner APIs")):::ext
+    Proxies(("Proxy Pool")):::ext
     ObjStore[("Object Storage S3")]:::db
   end
 
@@ -34,7 +52,7 @@ flowchart LR
     GitOpsRepo[("GitOps Repo\nState Source of Truth")]:::ci
   end
 
-  %% ── INFRASTRUCTURE ─────────────────────────────────────────────────────
+  %% INFRASTRUCTURE
   subgraph INFRA ["☁️ Cloud Infrastructure (Terraform-Managed)"]
     direction TB
     LB(["Hetzner Load Balancer\npublic HTTPS only"]):::infra
@@ -49,7 +67,7 @@ flowchart LR
     end
   end
 
-  %% ── KUBERNETES CLUSTER ──────────────────────────────────────────────────
+  %% KUBERNETES CLUSTER
   subgraph CLUSTER ["🛡️ Talos Kubernetes Cluster"]
     direction TB
 
@@ -76,7 +94,7 @@ flowchart LR
 
     subgraph P_APPS ["📦 Internal Platform Apps"]
       Webhook("Webhook Receiver\nHMAC validated"):::apps
-      Queue[("NATS RabbitMQ\nmessage broker")]:::db
+      Queue[("NATS / RabbitMQ\nmessage broker")]:::db
       LangGraph("LangGraph\norchestrator"):::apps
       Ollama("Ollama\nlocal LLM inference"):::apps
       Steel("Steel Browser Farm\nscraper egress only"):::apps
@@ -100,8 +118,13 @@ flowchart LR
     end
   end
 
-  %% ── JOURNEYS & FLOWS ────────────────────────────────────────────────────
-  
+  %% EGRESS TIER
+  subgraph EGRESS ["📤 Secure Outbound Tier"]
+    AIPod("AI / Scraper Pods"):::apps
+  end
+
+  %% JOURNEYS & FLOWS
+
   %% User Journey
   U        -->|"HTTPS public"| LB
   LB       -->|"HTTP/HTTPS"| Traefik
@@ -112,7 +135,7 @@ flowchart LR
 
   %% Developer Journey
   Dev      -->|"1. Git Push"| GH
-  GH       -->|"2. Trigger"| CI
+  GH       -->|"2. Trigger CI"| CI
   CI       -->|"3. PR / Commit"| GitOpsRepo
   GitOpsRepo -.->|"4. Sync"| ArgoCD
   ArgoCD   -.->|"SOPS Decrypt"| KMS
@@ -124,6 +147,13 @@ flowchart LR
   IAM -->|"kms:Decrypt"| KMS
   CI  -.->|"ephemeral join"| NetBirdMgmt
   NetBirdMgmt -.->|"mesh peer"| InfraPool
+
+  %% Egress Flow
+  AIPod -->|"egress via"| EgressPool
+  EgressPool -->|"NAT"| NAT
+  NAT --> Partner
+  NAT --> Proxies
+  NAT --> ObjStore
 
   %% Internal Relationships
   CertManager -->|"ACME / certificates"| Traefik
@@ -141,9 +171,9 @@ flowchart LR
   Kyverno     ==>|"verifyImages"| C_APPS
   Devtron     -.->|"Management"| ArgoCD
   Devtron     -.->|"OIDC identity"| Authentik
-  Remediate   -.->|"auto rollback"| GitOpsRepo
+  Remediate   -.->|"auto rollback PR"| GitOpsRepo
 
-  %% Cilium Segmentation (Security Story)
+  %% Cilium Segmentation
   subgraph SEG ["🔒 Cilium Zero-Trust Segmentation"]
     direction TB
     Zone1{"Platform NS\n(default-deny)"}:::sec
@@ -156,7 +186,7 @@ flowchart LR
   Zone2  --> Zone1
   Zone2  --> Zone3
 
-  %% ── LEGEND ──────────────────────────────────────────────────────────────
+  %% LEGEND
   subgraph LEGEND ["📊 Legend"]
     direction LR
     L1(["Infra / Network"]):::infra
@@ -167,7 +197,7 @@ flowchart LR
     L6("Observability"):::obs
   end
 
-  %% ── CLICKABLE LINKS ─────────────────────────────────────────────────────
+  %% CLICKABLE LINKS
   click Traefik "../../gitops/platform/traefik/" "Traefik manifests"
   click Authentik "../../gitops/platform/traefik/base/authentik-middleware.yaml" "Authentik ForwardAuth"
   click Kyverno "../../gitops/platform/policies/" "Kyverno policies"
@@ -175,3 +205,39 @@ flowchart LR
   click Devtron "../../gitops/platform/devtron/" "Devtron values"
   click CNPGPooler "../../gitops/platform/cnpg/" "CNPG Pooler"
   click Postgres "../../gitops/platform/cnpg/" "CloudNativePG cluster"
+```
+
+---
+
+## Ownership boundaries
+
+- **Terraform (infra repo)**  
+  - LB, NAT, DNS, NetBirdMgmt, IAM, Buckets, KMS, base Talos cluster.
+- **GitOps (gitops repo via ArgoCD)**  
+  - Traefik, cert‑manager, Cilium, Kyverno, CNPG, Redis, Longhorn, observability, platform apps.
+- **Devtron**  
+  - Application onboarding, app‑level Helm values, environment configs, deployment pipelines (if used), dashboards.
+
+---
+
+## Installation order (high level)
+
+1. Terraform: network, LB, DNS, IAM, S3, KMS, NetBirdMgmt, Talos cluster.
+2. Cluster bootstrap: Cilium, Longhorn, CNPG, Redis.
+3. Traefik + cert‑manager + Authentik outpost.
+4. ArgoCD install and GitOps bootstrap.
+5. Devtron install (external CNPG/Redis/NATS wired).
+6. Observability stack (Prometheus, Grafana, Loki).
+7. Kyverno in audit → enforce.
+8. App onboarding (internal + customer workloads).
+9. Final ingress exposure and SSO enforcement.
+
+---
+
+## Links to audience-specific docs
+
+- **[Cost, Time, and Complexity Analysis](./cost-time-complexity.md)** (Founder-Grade Assessment)
+- [Recruiter Overview](file:///c:/Users/MSI%20LAPTOP/Documents/Projects/helix-platform/docs/architecture/recruiter-overview.md)
+- [Network Admin View](file:///c:/Users/MSI%20LAPTOP/Documents/Projects/helix-platform/docs/architecture/network-admin-architecture.md)
+- [Platform Engineer View](file:///c:/Users/MSI%20LAPTOP/Documents/Projects/helix-platform/docs/architecture/platform-engineer-architecture.md)
+- [Multi-Domain Ingress Detail](file:///c:/Users/MSI%20LAPTOP/Documents/Projects/helix-platform/docs/architecture/multi-domain-ingress.md)

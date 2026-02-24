@@ -1,46 +1,51 @@
-# Diagrams and Mermaid conventions
+# Visual Architecture & Mermaid Governance
+
+> **Platform Version:** v3.3 (Security-First)  
+> **Lead Architect:** Wakeem Williams  
 
 ## Purpose
 
-Store canonical architecture and flow diagrams as Mermaid source files and render to SVG for reviewers and docs.
+This directory houses the high-fidelity visual representations of the Helix Platform. These diagrams are treated as code: they are versioned, linted, and automatically rendered to SVG to ensure the technical vision remains synchronized with the implementation.
 
-## Locations
+---
 
-- Source files: `docs/diagrams/*.mmd`
-- Rendered outputs: `docs/diagrams/*.svg`
-- Map of diagrams and owners: `docs/diagrams/MAP.md`
+## 📂 Logical Structure
 
-## Conventions
+### 1. Project Diagrams (`docs/diagrams/`)
 
-- One diagram per `.mmd` file.
-- Include a YAML header block at the top of each `.mmd` with:
-  - **id**: unique diagram id
-  - **owner**: GitHub handle
-  - **description**: one-line summary
-  - **last_updated**: ISO timestamp (CI can update)
+Focused technical views for engineers and operators:
 
-Example header (top of file):
+- **[overview-full.mmd](./overview-full.mmd)**: The master system map with security interlinks.
+- **[network.mmd](./network.mmd)**: Deep dive into zero-trust mesh, ingress, and egress.
+- **[cluster.mmd](./cluster.mmd)**: Node pools, namespaces, and internal platform apps.
+- **[failure-modes.mmd](./failure-modes.mmd)**: Operational runbook for triggers and recoveries.
+- **[state-kyverno.mmd](./state-kyverno.mmd)**: Policy lifecycle states (Draft → Audit → Enforce).
 
-```text
-%% id: service-map
-%% owner: @platform-owner
-%% description: High-level service and network map
-%% last_updated: 2026-02-23T00:00:00Z
+### 2. Stakeholder Suite (`docs/architecture/`)
+
+Persona-based documentation tailored for specific reviews:
+
+- **[Master Architecture](../architecture/master-architecture.md)**: Canonical source of truth.
+- **[Recruiter View](../architecture/recruiter-overview.md)**: Why this platform wins.
+- **[Admin View](../architecture/network-admin-architecture.md)**: Security-focused infrastructure.
+
+---
+
+## 🛠️ Governance & Standards
+
+- **Theme Consistency**: All diagrams use the custom "Base Dark" theme optimized for Helix (Deep Navy, Indigo, and Neon Green).
+- **Security Interlinks**: Every diagram must explicitly show the relationship between functional components and security gates (Authentik/Kyverno/NetBird).
+- **Automated Rendering**: SVGs are automatically regenerated using `mermaid-cli` (`mmdc`) on every commit to ensure documentation never drifts.
+
+---
+
+## 🔄 The Rendering Workflow
+
+If you modify an `.mmd` file, you must refresh the SVG:
+
+```bash
+npx -y @mermaid-js/mermaid-cli -i file.mmd -o file.svg -t dark -b transparent
 ```
 
-## Workflow
-
-- Local: run `scripts/render-mermaid.sh` to produce SVGs.
-- CI: `.github/workflows/render-mermaid.yml` renders on PRs and pushes.
-- PRs that change `.mmd` must include updated `.svg` or rely on CI to produce preview artifacts.
-
-## PR requirements
-
-- Update `docs/diagrams/MAP.md` if nodes or owners change.
-- Add a short textual summary in the PR describing the change.
-- Ensure the render workflow passes.
-
-## Troubleshooting
-
-- If rendering fails, run `mmdc -i file.mmd -o file.svg` locally to see errors.
-- Use the VS Code Mermaid preview extension for quick iteration.
+---
+© 2026 Wakeem Williams. All Rights Reserved.

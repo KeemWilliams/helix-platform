@@ -1,25 +1,78 @@
-%% Network Topology v1.0
-%% Owner: Network & Security Lead
+%% Network Topology v3.2 — Elite Version
+%% Professional Networking & Zero-Trust View
+%% Owner: @infra-owner @security-lead
 %% Last Validated: 2026-02-23
+%%{init:{"theme":"base","themeVariables":{"primaryColor":"#0f172a","primaryTextColor":"#f1f5f9","primaryBorderColor":"#6366f1","lineColor":"#475569","secondaryColor":"#1e293b","background":"#020617","mainBkg":"#1e293b","clusterBkg":"#0f172a","clusterBorder":"#334155","titleColor":"#f8fafc","edgeLabelBackground":"#0f172a","fontFamily":"Inter, system-ui, sans-serif"}}}%%
 
 graph LR
-  subgraph Ingress_Path ["Inbound Connectivity"]
-    External((Internet)) --> WAF[Cloudflare WAF]
-    WAF --> LB[Hetzner LB]
-    LB --> Gateway[Cilium Gateway API]
+  classDef ext   fill:#1e293b,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1,font-style:italic;
+  classDef infra fill:#0c4a6e,stroke:#0ea5e9,stroke-width:2px,color:#e0f2fe;
+  classDef sec   fill:#052e16,stroke:#4ade80,stroke-width:2px,color:#bbf7d0;
+  classDef mesh  fill:#1a1330,stroke:#a78bfa,stroke-width:2px,color:#ddd6fe;
+  classDef app   fill:#1e1b4b,stroke:#818cf8,stroke-width:1.5px,color:#c7d2fe;
+
+  %% ── INBOUND PATH ──────────────────────────────────────────────────────
+  subgraph PUBLIC ["🌐 Public Inbound Path (Untrusted)"]
+    Internet(("Internet")):::ext
+    WAF(["Cloudflare WAF\nDDoS + bot protection"]):::sec
+    LB(["Hetzner Load Balancer\npublic HTTPS only"]):::infra
+    Traefik(["Traefik Ingress v3\nIngressRoute CRDs"]):::infra
+    Authentik{"Authentik OIDC\nForwardAuth outpost"}:::sec
+    AppNS(["Application Namespace\nWebhook / Devtron / Apps"]):::app
   end
 
-  subgraph Egress_Path ["Secure Outbound Tier"]
-    AI_Pod[AI / Scraper Pods] --> Proxy[Envoy Egress Proxy]
-    Proxy --> NAT[NAT Gateway / Floating IP]
-    NAT --> Partners((Third Party APIs))
+  Internet -->|"HTTPS"| WAF
+  WAF      -->|"filtered"| LB
+  LB       -->|"HTTP/HTTPS"| Traefik
+  Traefik  ==>|"ForwardAuth check"| Authentik
+  Authentik -.->|"302 unauthed to auth.example.com"| Internet
+  Authentik -.->|"authed request"| AppNS
+
+  %% ── ZERO-TRUST MESH ───────────────────────────────────────────────────
+  subgraph MESH ["🕸️ NetBird Zero-Trust Mesh (Trusted)"]
+    NB_Ctrl(["NetBird Management\nControl Plane"]):::mesh
+    CI_Peer[/"CI Runner Peer\nephemeral=true\nauto-deregisters in 10m"/]:::mesh
+    Admin_Peer(["Admin / SRE Peer\npermanent"]):::mesh
+    K8sAPI(["Kubernetes API Server"]):::infra
+    ArgoUI(["ArgoCD UI"]):::app
   end
 
-  subgraph Segmentation ["Security Zones"]
-    Gateway --> APP_NS[Application Namespace]
-    APP_NS -- Default Deny --> Egress_Path
+  NB_Ctrl    -.->|"assign ephemeral peer"| CI_Peer
+  NB_Ctrl    -.->|"assign permanent peer"| Admin_Peer
+  CI_Peer    -.->|"WireGuard tunnel"| K8sAPI
+  Admin_Peer -.->|"WireGuard tunnel"| K8sAPI
+  Admin_Peer -.->|"WireGuard tunnel"| ArgoUI
+
+  %% ── EGRESS PATH ───────────────────────────────────────────────────────
+  subgraph EGRESS ["🔒 Secure Outbound Tier (Egress)"]
+    AIPod(["AI / Scraper Pods"]):::app
+    EnvoyProxy(["Envoy Egress Proxy"]):::infra
+    NAT(["NAT Gateway\nFloating IPs stable egress"]):::infra
+    External(("Third Party APIs")):::ext
   end
 
-  %% Verification Commands:
-  %% kubectl get ciliumnetworkpolicies -A
-  %% curl -I --proxy http://egress-gateway:3128 http://google.com
+  AIPod      -->|"all egress routed"| EnvoyProxy
+  EnvoyProxy -->|"static IP"| NAT
+  NAT        -->|"external calls"| External
+
+  %% ── SEGMENTATION ──────────────────────────────────────────────────────
+  subgraph SEG ["🛂 Cilium Zero-Trust Segmentation"]
+    direction TB
+    Zone1{"Platform NS\n(default-deny)"}:::sec
+    Zone2{"App NS\n(default-deny)"}:::sec
+    Zone3{"DB NS\n(default-deny)"}:::sec
+  end
+
+  AppNS -->|"allowed by policy"| Zone2
+  Zone2 -->|"explicit allow"| Zone1
+  Zone2 -->|"explicit allow"| Zone3
+  Zone2 -.->|"all else DROP"| EGRESS
+
+  %% ── LEGEND ────────────────────────────────────────────────────────────
+  subgraph LEGEND ["📊 Legend"]
+    direction LR
+    L1(["Infra / Network"]):::infra
+    L2(["Zero-Trust Mesh"]):::mesh
+    L3{"Security / Gate"}:::sec
+    L4(["Application"]):::app
+  end

@@ -1,0 +1,47 @@
+%% Kyverno Policy Lifecycle — State Diagram
+%% Owner: @ci-owner
+%% Version: 1.1 — removed invalid 'note right of' syntax
+%% Last validated: 2026-02-23
+%% Validation:
+%%   kubectl get clusterpolicy verify-image-provenance -o jsonpath='{.spec.validationFailureAction}'
+%%   kubectl get policyreport -A
+
+stateDiagram-v2
+
+  [*] --> Draft : kubectl apply ClusterPolicy
+
+  state Draft {
+    [*] --> Authoring
+    Authoring --> DryRun : kubectl apply dry-run server
+    DryRun --> ReadyAudit : dry-run passes
+  }
+
+  Draft --> Audit : Deploy to cluster - Audit mode only
+
+  state Audit {
+    [*] --> Watching
+    Watching --> ViolationsFound : kubectl get policyreport -A
+    Watching --> AllClean        : zero violations
+    ViolationsFound --> Remediating : Fix images or sign with Cosign
+    Remediating --> Watching
+  }
+
+  Audit --> Enforce : All images signed, zero violations 48h
+
+  state Enforce {
+    [*] --> Admitting
+    Admitting --> Blocked    : unsigned image rejected by webhook
+    Admitting --> Admitted   : cosign verify passes, digest mutated
+    Blocked --> PolicyException : emergency break-glass
+  }
+
+  state PolicyException {
+    [*] --> ExceptionApplied
+    ExceptionApplied --> Monitoring : audit bypass while fix in progress
+    Monitoring --> ExceptionRevoked : image signed, exception removed
+  }
+
+  PolicyException --> Enforce : exception revoked
+  Enforce --> [*]             : platform secured
+
+  Draft --> [*] : aborted
