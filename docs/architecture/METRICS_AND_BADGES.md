@@ -21,9 +21,20 @@ Add these to your root `README.md` to project confidence in your delivery pipeli
 
 ---
 
-## 📈 Operational Metrics (Prometheus / Grafana)
+## 📈 Operational Metrics (The PromQL Engine)
 
-Use these queries to populate your **Founder's Dashboard** for real-time visibility into the platform.
+These queries are the "engine" behind your **Founder's Dashboard**. In production, Prometheus/Grafana execute these and update the [real-time endpoints](file:///.github/pages/metrics/) that power your repository badges.
+
+| Metric | Source Engine (PromQL) | Link to Badge |
+| :--- | :--- | :--- |
+| **Cluster Uptime** | `sum(up) / count(up)` | [Uptime](file:///.github/pages/metrics/uptime.json) |
+| **P95 Latency** | `histogram_quantile(0.95, sum(rate(traefik_entrypoint_request_duration_seconds_bucket[5m])) by (le))` | [Latency](file:///.github/pages/metrics/latency.json) |
+| **Error Rate** | `sum(rate(traefik_entrypoint_requests_total{code=~"5.."}[5m])) / sum(rate(traefik_entrypoint_requests_total[5m]))` | [Error Rate](file:///.github/pages/metrics/error_rate.json) |
+| **Sync Velocity** | `sum(rate(argocd_app_sync_total{phase="Succeeded"}[1h]))` | [Syncs](file:///.github/pages/metrics/argo_syncs.json) |
+
+---
+
+## 🛠️ Detailed Query Specification
 
 ### 1. Delivery Velocity
 
